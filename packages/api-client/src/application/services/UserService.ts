@@ -1,5 +1,6 @@
 import { IUserRepository } from '../../domain/repositories';
 import { UserSearchParams, UsersResponse, GroupsResponse, EventsResponse } from '../../domain/entities';
+import { Validators } from '../../domain/utils/validators';
 
 export class UserService {
   constructor(private userRepository: IUserRepository) {}
@@ -9,23 +10,17 @@ export class UserService {
   }
 
   async getUserGroups(userId: number, params?: { count?: number; start?: number }): Promise<GroupsResponse> {
-    if (userId <= 0) {
-      throw new Error('User ID must be a positive number');
-    }
+    Validators.validatePositiveInteger(userId, 'User ID');
     return this.userRepository.getUserGroups(userId, params);
   }
 
   async getUserAttendedEvents(userId: number, params?: { count?: number; order?: 1 | 2 | 3; start?: number }): Promise<EventsResponse> {
-    if (userId <= 0) {
-      throw new Error('User ID must be a positive number');
-    }
+    Validators.validatePositiveInteger(userId, 'User ID');
     return this.userRepository.getUserAttendedEvents(userId, params);
   }
 
   async getUserPresenterEvents(userId: number, params?: { count?: number; order?: 1 | 2 | 3; start?: number }): Promise<EventsResponse> {
-    if (userId <= 0) {
-      throw new Error('User ID must be a positive number');
-    }
+    Validators.validatePositiveInteger(userId, 'User ID');
     return this.userRepository.getUserPresenterEvents(userId, params);
   }
 

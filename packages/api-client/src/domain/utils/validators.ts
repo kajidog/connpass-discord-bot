@@ -1,5 +1,5 @@
-import { ConnpassValidationError } from '../../domain/errors';
-import { EventSearchParams, GroupSearchParams, UserSearchParams } from '../../domain/entities';
+import { ConnpassValidationError } from '../errors';
+import { EventSearchParams, GroupSearchParams, UserSearchParams } from '../entities';
 
 export class Validators {
   static validateEventSearchParams(params: EventSearchParams): void {

@@ -1,7 +1,7 @@
 import { IUserRepository } from '../../domain/repositories';
 import { UserSearchParams, UsersResponse, GroupsResponse, EventsResponse } from '../../domain/entities';
 import { HttpClient } from '../http/HttpClient';
-import { Validators } from '../../application/utils/validators';
+import { Validators } from '../../domain/utils/validators';
 
 export class UserRepository implements IUserRepository {
   constructor(private httpClient: HttpClient) {}
