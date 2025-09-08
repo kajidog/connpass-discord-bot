@@ -1,0 +1,50 @@
+import { ConnpassClient } from '@connpass-discord-bot/api-client';
+import { JobManager } from './application/JobManager';
+import { JobScheduler } from './application/JobScheduler';
+import { InMemoryJobStore } from './infrastructure/InMemoryJobStore';
+import { FileJobStore } from './infrastructure/FileJobStore';
+import { startHttpApi } from './infrastructure/HttpApiServer';
+import type { JobSink, JobConfig, JobStore, Job, NewEventsPayload } from './domain/types';
+
+export {
+  JobManager,
+  JobScheduler,
+  InMemoryJobStore,
+  FileJobStore,
+  startHttpApi,
+  type JobSink,
+  type JobConfig,
+  type JobStore,
+  type Job,
+  type NewEventsPayload,
+};
+
+// A basic sink that logs to console; consumers (e.g., Discord bot) should implement their own sink.
+export class ConsoleSink implements JobSink {
+  handleNewEvents(payload: NewEventsPayload): void {
+    const titles = payload.events.map((e) => `- ${e.title} (${e.startedAt})`).join('\n');
+    // eslint-disable-next-line no-console
+    console.log(`[job:${payload.jobId}] New events for channel ${payload.channelId}:\n${titles}`);
+  }
+}
+
+// Helper to quickly bootstrap an in-process job runner (no HTTP), for embedding.
+export function createInProcessRunner(opts: {
+  apiKey: string;
+  sink?: JobSink;
+  store?: JobStore;
+}) {
+  const client = new ConnpassClient({ apiKey: opts.apiKey });
+  const store = opts.store ?? new InMemoryJobStore();
+  const sink = opts.sink ?? new ConsoleSink();
+  const manager = new JobManager(client, store, sink);
+  const scheduler = new JobScheduler(manager);
+  return { client, manager, scheduler };
+}
+
+// Minimal HTTP server bootstrap (no external deps). Useful if you want to manage jobs over REST.
+export function createHttpServer(opts: { apiKey: string; port?: number; sink?: JobSink; store?: JobStore }) {
+  const { client, manager, scheduler } = createInProcessRunner({ apiKey: opts.apiKey, sink: opts.sink, store: opts.store });
+  const server = startHttpApi(manager, scheduler, opts.port ?? 8787);
+  return { client, manager, scheduler, server };
+}

@@ -1,0 +1,1917 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "connpass API",
+        "version": "v2",
+        "description": "# 概要\nこのドキュメントでは connpass API について説明します。\n\n## API利用方法\n\nAPIの利用に伴う料金・プランや利用規約につきましてはこちらの [ヘルプページ](https://help.connpass.com/api/) をご覧ください。\n\n## 認証\nすべてのAPIエンドポイントでは、APIキーによる認証が必須です。\n\nAPI利用申請後に発行されるAPIキーを、HTTPリクエストヘッダー `X-API-Key` に指定してください。\n\n例：\n```\ncurl -X GET \"https://connpass.com/api/v2/events/?keyword=python\" \\\n-H \"X-API-Key: CPaVAKNa.6u0RBKOm2F462P4vDHln8IR2MW5PhR493cFH6UbKyE8OqbsBfEk4p6FF\"\n```\n\n認証に失敗した場合、HTTPステータスコード `401 Unauthorized` が返されます。\n\nAPIキーを紛失した場合や、第三者に漏洩した可能性がある場合は、速やかに再発行をご依頼ください。\n\n## アクセス制限\nAPIキーごとに、現状「1秒間に1リクエストまで」 のリクエスト制限 (スロットリング) を設けています。\n\nこの制限を超過すると、HTTPステータスコード `429 Too Many Requests` が返されます。\n\nまた、提供されているAPI以外の手段（自動化の有無にかかわらず）で、当サービスへクローリング、スクレイピング、その他のアクセスを行う、または試みる行為は、[利用規約](https://connpass.com/term/) により禁止されています。\n\n## API v1 から v2 への移行\n\n[connpass API v1](https://connpass.com/about/api/v1/) は今後非推奨となり、2025年末に廃止される予定です。\n\nAPI v1とv2の間では、認証方式や入出力仕様の変更が加えられているため、既存のクライアントコードには変更が必要です。\n\nこのドキュメントでは、v1からv2への移行にあたり考慮すべき変更点を整理しています。v1は今後非推奨となり、2025年末に廃止される予定であるため、以下に示す内容をもとに、各システムで必要なマイグレーション対応を計画・実施してください。\n\n### 変更点概要\n\n#### 認証の導入\n\n- すべてのAPIエンドポイントで、APIキーによる認証が必須となりました\n- そのため、固定IPからの接続が不要となりました\n- 詳細は「[認証](#section/概要/認証)」セクションを参照してください\n\n#### アクセス制限の導入\n\n- 各APIキーごとにアクセス制限(スロットリング)が適用されるようになりました\n- 詳細は[「アクセス制限」](#section/概要/アクセス制限)セクションを参照してください\n\n#### エンドポイントの変更\n\n- ルートURLが v2 用に変更されました (`/api/v1/` → `/api/v2/`)\n- コレクション名が単数形から複数形に変更されました (例: `event` → `events`)\n\n#### パラメーター名・レスポンスフィールド名の整理\n\n- 冗長・旧名称のフィールドを、簡潔・現在の仕様に合わせた名称に変更しました (例: `event_id` → `id`, `series` → `group`)\n\n---\n\n### 各APIの変更点詳細\n\n#### イベント一覧API\n\n- エンドポイント：\n  - `/api/v1/event/` → `/api/v2/events/`\n- リクエストパラメーター：\n  - `series_id` → `group_id`\n- レスポンスフィールド：\n  - `event_id` → 削除 (代わりに `id` を使用)\n  - `event_url` → 削除 (代わりに `url` を使用)\n  - `series` → `group`\n\n#### イベント資料API\n\n- エンドポイント：\n  - `/api/v1/event/{id}/presentation` → `/api/v2/events/{id}/presentations`\n\n#### グループ一覧API\n\n- エンドポイント：\n  - `/api/v1/group/` → `/api/v2/groups/`\n\n#### ユーザー一覧API\n\n- エンドポイント：\n  - `/api/v1/user/` → `/api/v2/users/`\n- レスポンスフィールド：\n  - `user_id` → `id`\n  - `user_url` → `url`\n  - `user_image_url` → `image_url`\n\n#### ユーザー所属グループAPI\n\n- エンドポイント：\n  - `/api/v1/user/{nickname}/group/` → `/api/v2/users/{nickname}/groups/`\n\n#### ユーザー参加イベントAPI\n\n- エンドポイント：\n  - `/api/v1/user/{nickname}/attended_event/` → `/api/v2/users/{nickname}/attended_events/`\n- レスポンスフィールド：\n  - `event_id` → 削除 (代わりに `id` を使用)\n  - `event_url` → 削除 (代わりに `url` を使用)\n\n  - `series` → `group`\n\n#### ユーザー発表イベントAPI\n\n- エンドポイント：\n  - `/api/v1/user/{nickname}/presenter_event/` → `/api/v2/users/{nickname}/presenter_events/`\n- レスポンスフィールド：\n  - `event_id` → 削除 (代わりに `id` を使用)\n  - `event_url` → 削除 (代わりに `url` を使用)\n  - `series` → `group`\n",
+        "x-logo": {
+            "url": "https://connpass.com/static/img/common/sitelogo_190x60.png",
+            "href": "/"
+        }
+    },
+    "paths": {
+        "/api/v2/events/": {
+            "get": {
+                "operationId": "connpass_event_event_api_v2_views_event_search",
+                "summary": "一覧",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "event_id",
+                        "schema": {
+                            "description": "イベント毎に割り当てられた番号で検索します。複数指定可能です。\n\nURLが `https://connpass.com/event/364/` のイベントの場合、イベントIDは `364` になります。",
+                            "examples": {
+                                "1": {
+                                    "summary": "単一指定",
+                                    "value": 364
+                                },
+                                "2": {
+                                    "summary": "複数指定",
+                                    "value": [
+                                        364,
+                                        365
+                                    ]
+                                },
+                                "3": {
+                                    "summary": "複数指定",
+                                    "value": "364,365"
+                                }
+                            },
+                            "items": {
+                                "type": "integer"
+                            },
+                            "title": "イベントID",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "イベント毎に割り当てられた番号で検索します。複数指定可能です。\n\nURLが `https://connpass.com/event/364/` のイベントの場合、イベントIDは `364` になります。",
+                        "examples": {
+                            "1": {
+                                "summary": "単一指定",
+                                "value": 364
+                            },
+                            "2": {
+                                "summary": "複数指定",
+                                "value": [
+                                    364,
+                                    365
+                                ]
+                            },
+                            "3": {
+                                "summary": "複数指定",
+                                "value": "364,365"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "keyword",
+                        "schema": {
+                            "description": "イベントのタイトル、キャッチ、概要、住所をAND条件部分一致で検索します。複数指定可能です。",
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "キーワード(AND)",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "イベントのタイトル、キャッチ、概要、住所をAND条件部分一致で検索します。複数指定可能です。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "keyword_or",
+                        "schema": {
+                            "description": "イベントのタイトル、キャッチ、概要、住所をOR条件部分一致で検索します。複数指定可能です。",
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "キーワード(OR)",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "イベントのタイトル、キャッチ、概要、住所をOR条件部分一致で検索します。複数指定可能です。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "ym",
+                        "schema": {
+                            "description": "指定した年月に開催されているイベントを検索します。複数指定可能です。\n\n`yyyymm` 形式。",
+                            "examples": [
+                                "201204"
+                            ],
+                            "items": {
+                                "format": "date-time",
+                                "type": "string"
+                            },
+                            "title": "イベント開催年月",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "指定した年月に開催されているイベントを検索します。複数指定可能です。\n\n`yyyymm` 形式。",
+                        "examples": [
+                            "201204"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "ymd",
+                        "schema": {
+                            "description": "指定した年月日に開催されているイベントを検索します。複数指定可能です。\n\n`yyyymmdd` 形式。",
+                            "examples": [
+                                "20120406"
+                            ],
+                            "items": {
+                                "format": "date-time",
+                                "type": "string"
+                            },
+                            "title": "イベント開催年月日",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "指定した年月日に開催されているイベントを検索します。複数指定可能です。\n\n`yyyymmdd` 形式。",
+                        "examples": [
+                            "20120406"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "nickname",
+                        "schema": {
+                            "description": "指定したニックネームのユーザが参加しているイベントを検索します。複数指定可能です。",
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "参加者のニックネーム",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "指定したニックネームのユーザが参加しているイベントを検索します。複数指定可能です。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "owner_nickname",
+                        "schema": {
+                            "description": "指定したニックネームのユーザが管理しているイベントを検索します。複数指定可能です。",
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "管理者のニックネーム",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "指定したニックネームのユーザが管理しているイベントを検索します。複数指定可能です。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "group_id",
+                        "schema": {
+                            "description": "グループ 毎に割り当てられた番号で、ひもづいたイベントを検索します。複数指定可能です。\n\nURLが `https://connpass.com/series/1/` のグループの場合、グループIDは `1` になります",
+                            "examples": [
+                                1
+                            ],
+                            "items": {
+                                "type": "integer"
+                            },
+                            "title": "グループID",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "グループ 毎に割り当てられた番号で、ひもづいたイベントを検索します。複数指定可能です。\n\nURLが `https://connpass.com/series/1/` のグループの場合、グループIDは `1` になります",
+                        "examples": [
+                            1
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "subdomain",
+                        "schema": {
+                            "description": "グループ 毎に割り当てられたサブドメインで、ひもづいたイベントを検索します。複数指定可能です。\n\nURLが `https://bpstudy.connpass.com/` のグループの場合、サブドメインは `bpstudy` になります",
+                            "examples": [
+                                "bpstudy"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "サブドメイン",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "グループ 毎に割り当てられたサブドメインで、ひもづいたイベントを検索します。複数指定可能です。\n\nURLが `https://bpstudy.connpass.com/` のグループの場合、サブドメインは `bpstudy` になります",
+                        "examples": [
+                            "bpstudy"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "prefecture",
+                        "schema": {
+                            "description": "指定した都道府県で開催されているイベントを検索します。複数指定可能です。\n\n* `online`:  オンライン\n* `hokkaido`:  北海道\n* `aomori`:  青森県\n* `iwate`:  岩手県\n* `miyagi`:  宮城県\n* `akita`:  秋田県\n* `yamagata`:  山形県\n* `fukushima`:  福島県\n* `ibaraki`:  茨城県\n* `tochigi`:  栃木県\n* `gunma`:  群馬県\n* `saitama`:  埼玉県\n* `chiba`:  千葉県\n* `tokyo`:  東京都\n* `kanagawa`:  神奈川県\n* `yamanashi`:  山梨県\n* `nagano`:  長野県\n* `niigata`:  新潟県\n* `toyama`:  富山県\n* `ishikawa`:  石川県\n* `fukui`:  福井県\n* `gifu`:  岐阜県\n* `shizuoka`:  静岡県\n* `aichi`:  愛知県\n* `mie`:  三重県\n* `shiga`:  滋賀県\n* `kyoto`:  京都府\n* `osaka`:  大阪府\n* `hyogo`:  兵庫県\n* `nara`:  奈良県\n* `wakayama`:  和歌山県\n* `tottori`:  鳥取県\n* `shimane`:  島根県\n* `okayama`:  岡山県\n* `hiroshima`:  広島県\n* `yamaguchi`:  山口県\n* `tokushima`:  徳島県\n* `kagawa`:  香川県\n* `ehime`:  愛媛県\n* `kochi`:  高知県\n* `fukuoka`:  福岡県\n* `saga`:  佐賀県\n* `nagasaki`:  長崎県\n* `kumamoto`:  熊本県\n* `oita`:  大分県\n* `miyazaki`:  宮崎県\n* `kagoshima`:  鹿児島県\n* `okinawa`:  沖縄県\n",
+                            "examples": [
+                                "online"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "都道府県",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "指定した都道府県で開催されているイベントを検索します。複数指定可能です。\n\n* `online`:  オンライン\n* `hokkaido`:  北海道\n* `aomori`:  青森県\n* `iwate`:  岩手県\n* `miyagi`:  宮城県\n* `akita`:  秋田県\n* `yamagata`:  山形県\n* `fukushima`:  福島県\n* `ibaraki`:  茨城県\n* `tochigi`:  栃木県\n* `gunma`:  群馬県\n* `saitama`:  埼玉県\n* `chiba`:  千葉県\n* `tokyo`:  東京都\n* `kanagawa`:  神奈川県\n* `yamanashi`:  山梨県\n* `nagano`:  長野県\n* `niigata`:  新潟県\n* `toyama`:  富山県\n* `ishikawa`:  石川県\n* `fukui`:  福井県\n* `gifu`:  岐阜県\n* `shizuoka`:  静岡県\n* `aichi`:  愛知県\n* `mie`:  三重県\n* `shiga`:  滋賀県\n* `kyoto`:  京都府\n* `osaka`:  大阪府\n* `hyogo`:  兵庫県\n* `nara`:  奈良県\n* `wakayama`:  和歌山県\n* `tottori`:  鳥取県\n* `shimane`:  島根県\n* `okayama`:  岡山県\n* `hiroshima`:  広島県\n* `yamaguchi`:  山口県\n* `tokushima`:  徳島県\n* `kagawa`:  香川県\n* `ehime`:  愛媛県\n* `kochi`:  高知県\n* `fukuoka`:  福岡県\n* `saga`:  佐賀県\n* `nagasaki`:  長崎県\n* `kumamoto`:  熊本県\n* `oita`:  大分県\n* `miyazaki`:  宮崎県\n* `kagoshima`:  鹿児島県\n* `okinawa`:  沖縄県\n",
+                        "examples": [
+                            "online"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "order",
+                        "schema": {
+                            "default": 1,
+                            "description": "検索結果の表示順を、更新日時順、開催日時順、新着順で指定します。\n\n* `1`: 更新日時順\n* `2`: 開催日時順\n* `3`: 新着順",
+                            "title": "検索結果の表示順",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の表示順を、更新日時順、開催日時順、新着順で指定します。\n\n* `1`: 更新日時順\n* `2`: 開催日時順\n* `3`: 新着順"
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "default": 1,
+                            "description": "検索結果の何件目から出力するかを指定します。",
+                            "minimum": 1,
+                            "title": "検索の開始位置",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の何件目から出力するかを指定します。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "count",
+                        "schema": {
+                            "default": 10,
+                            "description": "検索結果の最大出力データ数を指定します。",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "title": "取得件数",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の最大出力データ数を指定します。"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventListResponseSchema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "検索クエリの条件に応じたイベント一覧を取得する。\n\nパラメータを複数指定する場合は、`name=value1&name=value2&...` または `name=value1,value2...` のように指定できます。",
+                "tags": [
+                    "イベント"
+                ],
+                "security": [
+                    {
+                        "APIKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/events/{id}/presentations/": {
+            "get": {
+                "operationId": "connpass_event_event_api_v2_views_event_presentation",
+                "summary": "資料",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "description": "指定したイベントIDのオブジェクトを取得します。\n\nURLが `https://connpass.com/event/364/` のイベントの場合、イベントIDは `364` になります。",
+                            "examples": [
+                                364
+                            ],
+                            "title": "イベントID",
+                            "type": "integer"
+                        },
+                        "required": true,
+                        "description": "指定したイベントIDのオブジェクトを取得します。\n\nURLが `https://connpass.com/event/364/` のイベントの場合、イベントIDは `364` になります。",
+                        "examples": [
+                            364
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "default": 1,
+                            "description": "検索結果の何件目から出力するかを指定します。",
+                            "minimum": 1,
+                            "title": "検索の開始位置",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の何件目から出力するかを指定します。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "count",
+                        "schema": {
+                            "default": 10,
+                            "description": "検索結果の最大出力データ数を指定します。",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "title": "取得件数",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の最大出力データ数を指定します。"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PresentationListResponseSchema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "イベントに投稿された資料一覧を取得できます。",
+                "tags": [
+                    "イベント"
+                ],
+                "security": [
+                    {
+                        "APIKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/groups/": {
+            "get": {
+                "operationId": "connpass_group_group_api_v2_views_group_search",
+                "summary": "一覧",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "subdomain",
+                        "schema": {
+                            "description": "指定したサブドメインのグループを取得します。複数指定可能です(最大100件)。",
+                            "examples": {
+                                "1": {
+                                    "summary": "単一指定",
+                                    "value": "bpstudy"
+                                },
+                                "2": {
+                                    "summary": "複数指定",
+                                    "value": [
+                                        "bpstudy",
+                                        "beproud"
+                                    ]
+                                },
+                                "3": {
+                                    "summary": "複数指定",
+                                    "value": "bpstudy,beproud"
+                                }
+                            },
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "サブドメイン",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "指定したサブドメインのグループを取得します。複数指定可能です(最大100件)。",
+                        "examples": {
+                            "1": {
+                                "summary": "単一指定",
+                                "value": "bpstudy"
+                            },
+                            "2": {
+                                "summary": "複数指定",
+                                "value": [
+                                    "bpstudy",
+                                    "beproud"
+                                ]
+                            },
+                            "3": {
+                                "summary": "複数指定",
+                                "value": "bpstudy,beproud"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "default": 1,
+                            "description": "検索結果の何件目から出力するかを指定します。",
+                            "minimum": 1,
+                            "title": "検索の開始位置",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の何件目から出力するかを指定します。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "count",
+                        "schema": {
+                            "default": 10,
+                            "description": "検索結果の最大出力データ数を指定します。",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "title": "取得件数",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の最大出力データ数を指定します。"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroupListResponseSchema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "検索クエリの条件に応じたグループ一覧を取得できます。\n\nパラメータを複数指定する場合は、`name=value1&name=value2&...` または `name=value1,value2...` のように指定できます。",
+                "tags": [
+                    "グループ"
+                ],
+                "security": [
+                    {
+                        "APIKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/users/": {
+            "get": {
+                "operationId": "connpass_account_account_api_v2_views_user_search",
+                "summary": "一覧",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "nickname",
+                        "schema": {
+                            "description": "指定したニックネームのユーザを検索します。複数指定可能です(最大100件)。",
+                            "examples": {
+                                "1": {
+                                    "summary": "単一指定",
+                                    "value": "haru860"
+                                },
+                                "2": {
+                                    "summary": "複数指定",
+                                    "value": [
+                                        "haru860",
+                                        "ian"
+                                    ]
+                                },
+                                "3": {
+                                    "summary": "複数指定",
+                                    "value": "haru860,ian"
+                                }
+                            },
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "ニックネーム",
+                            "type": "array"
+                        },
+                        "required": false,
+                        "description": "指定したニックネームのユーザを検索します。複数指定可能です(最大100件)。",
+                        "examples": {
+                            "1": {
+                                "summary": "単一指定",
+                                "value": "haru860"
+                            },
+                            "2": {
+                                "summary": "複数指定",
+                                "value": [
+                                    "haru860",
+                                    "ian"
+                                ]
+                            },
+                            "3": {
+                                "summary": "複数指定",
+                                "value": "haru860,ian"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "default": 1,
+                            "description": "検索結果の何件目から出力するかを指定します。",
+                            "minimum": 1,
+                            "title": "検索の開始位置",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の何件目から出力するかを指定します。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "count",
+                        "schema": {
+                            "default": 10,
+                            "description": "検索結果の最大出力データ数を指定します。",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "title": "取得件数",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の最大出力データ数を指定します。"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserListResponseSchema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "検索クエリの条件に応じたユーザー一覧を取得できます。\n\nパラメータを複数指定する場合は、`name=value1&name=value2&...` または `name=value1,value2...` のように指定できます。",
+                "tags": [
+                    "ユーザー"
+                ],
+                "security": [
+                    {
+                        "APIKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/users/{nickname}/groups/": {
+            "get": {
+                "operationId": "connpass_account_account_api_v2_views_user_group",
+                "summary": "所属グループ",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "nickname",
+                        "schema": {
+                            "description": "指定したニックネームのユーザを検索します。",
+                            "examples": [
+                                "haru860"
+                            ],
+                            "title": "ニックネーム",
+                            "type": "string"
+                        },
+                        "required": true,
+                        "description": "指定したニックネームのユーザを検索します。",
+                        "examples": [
+                            "haru860"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "default": 1,
+                            "description": "検索結果の何件目から出力するかを指定します。",
+                            "minimum": 1,
+                            "title": "検索の開始位置",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の何件目から出力するかを指定します。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "count",
+                        "schema": {
+                            "default": 10,
+                            "description": "検索結果の最大出力データ数を指定します。",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "title": "取得件数",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の最大出力データ数を指定します。"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroupListResponseSchema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "ユーザーが所属しているグループ一覧を取得できます。",
+                "tags": [
+                    "ユーザー"
+                ],
+                "security": [
+                    {
+                        "APIKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/users/{nickname}/attended_events/": {
+            "get": {
+                "operationId": "connpass_account_account_api_v2_views_user_attended_event",
+                "summary": "参加イベント",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "nickname",
+                        "schema": {
+                            "description": "指定したニックネームのユーザを検索します。",
+                            "examples": [
+                                "haru860"
+                            ],
+                            "title": "ニックネーム",
+                            "type": "string"
+                        },
+                        "required": true,
+                        "description": "指定したニックネームのユーザを検索します。",
+                        "examples": [
+                            "haru860"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "default": 1,
+                            "description": "検索結果の何件目から出力するかを指定します。",
+                            "minimum": 1,
+                            "title": "検索の開始位置",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の何件目から出力するかを指定します。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "count",
+                        "schema": {
+                            "default": 10,
+                            "description": "検索結果の最大出力データ数を指定します。",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "title": "取得件数",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の最大出力データ数を指定します。"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventListResponseSchema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "ユーザーが参加したイベント一覧を取得できます。",
+                "tags": [
+                    "ユーザー"
+                ],
+                "security": [
+                    {
+                        "APIKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/users/{nickname}/presenter_events/": {
+            "get": {
+                "operationId": "connpass_account_account_api_v2_views_user_presenter_event",
+                "summary": "発表イベント",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "nickname",
+                        "schema": {
+                            "description": "指定したニックネームのユーザを検索します。",
+                            "examples": [
+                                "haru860"
+                            ],
+                            "title": "ニックネーム",
+                            "type": "string"
+                        },
+                        "required": true,
+                        "description": "指定したニックネームのユーザを検索します。",
+                        "examples": [
+                            "haru860"
+                        ]
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "default": 1,
+                            "description": "検索結果の何件目から出力するかを指定します。",
+                            "minimum": 1,
+                            "title": "検索の開始位置",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の何件目から出力するかを指定します。"
+                    },
+                    {
+                        "in": "query",
+                        "name": "count",
+                        "schema": {
+                            "default": 10,
+                            "description": "検索結果の最大出力データ数を指定します。",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "title": "取得件数",
+                            "type": "integer"
+                        },
+                        "required": false,
+                        "description": "検索結果の最大出力データ数を指定します。"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventListResponseSchema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "ユーザーが発表したイベント一覧を取得できます。",
+                "tags": [
+                    "ユーザー"
+                ],
+                "security": [
+                    {
+                        "APIKeyAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "EventSearchRequestSchema": {
+                "description": "イベント検索条件用スキーマ(Query parameters指定)",
+                "properties": {
+                    "event_id": {
+                        "description": "イベント毎に割り当てられた番号で検索します。複数指定可能です。\n\nURLが `https://connpass.com/event/364/` のイベントの場合、イベントIDは `364` になります。",
+                        "examples": {
+                            "1": {
+                                "summary": "単一指定",
+                                "value": 364
+                            },
+                            "2": {
+                                "summary": "複数指定",
+                                "value": [
+                                    364,
+                                    365
+                                ]
+                            },
+                            "3": {
+                                "summary": "複数指定",
+                                "value": "364,365"
+                            }
+                        },
+                        "items": {
+                            "type": "integer"
+                        },
+                        "title": "イベントID",
+                        "type": "array"
+                    },
+                    "keyword": {
+                        "description": "イベントのタイトル、キャッチ、概要、住所をAND条件部分一致で検索します。複数指定可能です。",
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "キーワード(AND)",
+                        "type": "array"
+                    },
+                    "keyword_or": {
+                        "description": "イベントのタイトル、キャッチ、概要、住所をOR条件部分一致で検索します。複数指定可能です。",
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "キーワード(OR)",
+                        "type": "array"
+                    },
+                    "ym": {
+                        "description": "指定した年月に開催されているイベントを検索します。複数指定可能です。\n\n`yyyymm` 形式。",
+                        "examples": [
+                            "201204"
+                        ],
+                        "items": {
+                            "format": "date-time",
+                            "type": "string"
+                        },
+                        "title": "イベント開催年月",
+                        "type": "array"
+                    },
+                    "ymd": {
+                        "description": "指定した年月日に開催されているイベントを検索します。複数指定可能です。\n\n`yyyymmdd` 形式。",
+                        "examples": [
+                            "20120406"
+                        ],
+                        "items": {
+                            "format": "date-time",
+                            "type": "string"
+                        },
+                        "title": "イベント開催年月日",
+                        "type": "array"
+                    },
+                    "nickname": {
+                        "description": "指定したニックネームのユーザが参加しているイベントを検索します。複数指定可能です。",
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "参加者のニックネーム",
+                        "type": "array"
+                    },
+                    "owner_nickname": {
+                        "description": "指定したニックネームのユーザが管理しているイベントを検索します。複数指定可能です。",
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "管理者のニックネーム",
+                        "type": "array"
+                    },
+                    "group_id": {
+                        "description": "グループ 毎に割り当てられた番号で、ひもづいたイベントを検索します。複数指定可能です。\n\nURLが `https://connpass.com/series/1/` のグループの場合、グループIDは `1` になります",
+                        "examples": [
+                            1
+                        ],
+                        "items": {
+                            "type": "integer"
+                        },
+                        "title": "グループID",
+                        "type": "array"
+                    },
+                    "subdomain": {
+                        "description": "グループ 毎に割り当てられたサブドメインで、ひもづいたイベントを検索します。複数指定可能です。\n\nURLが `https://bpstudy.connpass.com/` のグループの場合、サブドメインは `bpstudy` になります",
+                        "examples": [
+                            "bpstudy"
+                        ],
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "サブドメイン",
+                        "type": "array"
+                    },
+                    "prefecture": {
+                        "description": "指定した都道府県で開催されているイベントを検索します。複数指定可能です。\n\n* `online`:  オンライン\n* `hokkaido`:  北海道\n* `aomori`:  青森県\n* `iwate`:  岩手県\n* `miyagi`:  宮城県\n* `akita`:  秋田県\n* `yamagata`:  山形県\n* `fukushima`:  福島県\n* `ibaraki`:  茨城県\n* `tochigi`:  栃木県\n* `gunma`:  群馬県\n* `saitama`:  埼玉県\n* `chiba`:  千葉県\n* `tokyo`:  東京都\n* `kanagawa`:  神奈川県\n* `yamanashi`:  山梨県\n* `nagano`:  長野県\n* `niigata`:  新潟県\n* `toyama`:  富山県\n* `ishikawa`:  石川県\n* `fukui`:  福井県\n* `gifu`:  岐阜県\n* `shizuoka`:  静岡県\n* `aichi`:  愛知県\n* `mie`:  三重県\n* `shiga`:  滋賀県\n* `kyoto`:  京都府\n* `osaka`:  大阪府\n* `hyogo`:  兵庫県\n* `nara`:  奈良県\n* `wakayama`:  和歌山県\n* `tottori`:  鳥取県\n* `shimane`:  島根県\n* `okayama`:  岡山県\n* `hiroshima`:  広島県\n* `yamaguchi`:  山口県\n* `tokushima`:  徳島県\n* `kagawa`:  香川県\n* `ehime`:  愛媛県\n* `kochi`:  高知県\n* `fukuoka`:  福岡県\n* `saga`:  佐賀県\n* `nagasaki`:  長崎県\n* `kumamoto`:  熊本県\n* `oita`:  大分県\n* `miyazaki`:  宮崎県\n* `kagoshima`:  鹿児島県\n* `okinawa`:  沖縄県\n",
+                        "examples": [
+                            "online"
+                        ],
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "都道府県",
+                        "type": "array"
+                    },
+                    "order": {
+                        "default": 1,
+                        "description": "検索結果の表示順を、更新日時順、開催日時順、新着順で指定します。\n\n* `1`: 更新日時順\n* `2`: 開催日時順\n* `3`: 新着順",
+                        "title": "検索結果の表示順",
+                        "type": "integer"
+                    }
+                },
+                "title": "EventSearchRequestSchema",
+                "type": "object"
+            },
+            "PaginationRequestSchema": {
+                "description": "ページネーション用のリクエストスキーマ(Path parameters指定)",
+                "properties": {
+                    "start": {
+                        "default": 1,
+                        "description": "検索結果の何件目から出力するかを指定します。",
+                        "minimum": 1,
+                        "title": "検索の開始位置",
+                        "type": "integer"
+                    },
+                    "count": {
+                        "default": 10,
+                        "description": "検索結果の最大出力データ数を指定します。",
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "取得件数",
+                        "type": "integer"
+                    }
+                },
+                "title": "PaginationRequestSchema",
+                "type": "object"
+            },
+            "EventListResponseSchema": {
+                "description": "イベント一覧",
+                "properties": {
+                    "results_returned": {
+                        "examples": [
+                            1
+                        ],
+                        "title": "含まれる検索結果の件数",
+                        "type": "integer"
+                    },
+                    "results_available": {
+                        "examples": [
+                            91
+                        ],
+                        "title": "検索結果の総件数",
+                        "type": "integer"
+                    },
+                    "results_start": {
+                        "examples": [
+                            1
+                        ],
+                        "title": "検索結果の開始位置",
+                        "type": "integer"
+                    },
+                    "events": {
+                        "items": {
+                            "$ref": "#/components/schemas/EventSchema"
+                        },
+                        "title": "イベント一覧",
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "results_returned",
+                    "results_available",
+                    "results_start",
+                    "events"
+                ],
+                "title": "EventListResponseSchema",
+                "type": "object"
+            },
+            "EventSchema": {
+                "description": "イベント詳細",
+                "properties": {
+                    "id": {
+                        "examples": [
+                            364
+                        ],
+                        "title": "イベントID",
+                        "type": "integer"
+                    },
+                    "title": {
+                        "examples": [
+                            "BPStudy#56"
+                        ],
+                        "title": "イベント名",
+                        "type": "string"
+                    },
+                    "catch": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "株式会社ビープラウドが主催するWeb系技術討論の会"
+                        ],
+                        "title": "キャッチ"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "今回は「Python プロフェッショナル　プログラミング」執筆プロジェクトの継続的ビルドについて、お話しして頂きます。"
+                        ],
+                        "title": "概要"
+                    },
+                    "url": {
+                        "examples": [
+                            "https://bpstudy.connpass.com/event/364/"
+                        ],
+                        "title": "connpass.com上のURL",
+                        "type": "string"
+                    },
+                    "image_url": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "**このURLはある程度の時間で失効されます。外部サイトでの直接参照などはご遠慮ください。**",
+                        "title": "イベント画像URL"
+                    },
+                    "hash_tag": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "bpstudy"
+                        ],
+                        "title": "X(Twitter)のハッシュタグ"
+                    },
+                    "started_at": {
+                        "anyOf": [
+                            {
+                                "format": "date-time",
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "2012-04-17T18:30:00+09:00"
+                        ],
+                        "title": "イベント開催日時 (ISO-8601形式)"
+                    },
+                    "ended_at": {
+                        "anyOf": [
+                            {
+                                "format": "date-time",
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "2012-04-17T20:30:00+09:00"
+                        ],
+                        "title": "イベント終了日時 (ISO-8601形式)"
+                    },
+                    "limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            80
+                        ],
+                        "title": "定員"
+                    },
+                    "event_type": {
+                        "description": "* `participation`: connpassで参加受付あり\n* `advertisement`: 告知のみ",
+                        "examples": [
+                            "participation"
+                        ],
+                        "title": "イベント参加タイプ",
+                        "type": "string"
+                    },
+                    "open_status": {
+                        "description": "* `preopen`: 開催前\n* `open`: 開催中\n* `close`: 終了\n* `cancelled`: 中止",
+                        "examples": [
+                            "open"
+                        ],
+                        "title": "イベントの開催状態",
+                        "type": "string"
+                    },
+                    "group": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/GroupSummarySchema"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "グループ"
+                    },
+                    "address": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "東京都豊島区東池袋3-1-1"
+                        ],
+                        "title": "開催場所"
+                    },
+                    "place": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "BPオフィス (サンシャイン60 45階)"
+                        ],
+                        "title": "開催会場"
+                    },
+                    "lat": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "35.729402000000"
+                        ],
+                        "title": "開催会場の緯度"
+                    },
+                    "lon": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "139.718209000000"
+                        ],
+                        "title": "開催会場の経度"
+                    },
+                    "owner_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            8
+                        ],
+                        "title": "管理者のID"
+                    },
+                    "owner_nickname": {
+                        "examples": [
+                            "haru860"
+                        ],
+                        "title": "管理者のニックネーム",
+                        "type": "string"
+                    },
+                    "owner_display_name": {
+                        "examples": [
+                            "佐藤 治夫"
+                        ],
+                        "title": "管理者の表示名",
+                        "type": "string"
+                    },
+                    "accepted": {
+                        "examples": [
+                            80
+                        ],
+                        "title": "参加者数",
+                        "type": "integer"
+                    },
+                    "waiting": {
+                        "examples": [
+                            15
+                        ],
+                        "title": "補欠者数",
+                        "type": "integer"
+                    },
+                    "updated_at": {
+                        "examples": [
+                            "2012-03-20T12:07:32+09:00"
+                        ],
+                        "format": "date-time",
+                        "title": "更新日時 (ISO-8601形式)",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "title",
+                    "catch",
+                    "description",
+                    "url",
+                    "image_url",
+                    "hash_tag",
+                    "started_at",
+                    "ended_at",
+                    "limit",
+                    "event_type",
+                    "open_status",
+                    "group",
+                    "address",
+                    "place",
+                    "lat",
+                    "lon",
+                    "owner_id",
+                    "owner_nickname",
+                    "owner_display_name",
+                    "accepted",
+                    "waiting",
+                    "updated_at"
+                ],
+                "title": "EventSchema",
+                "type": "object"
+            },
+            "GroupSummarySchema": {
+                "description": "グループ概要",
+                "properties": {
+                    "id": {
+                        "examples": [
+                            1
+                        ],
+                        "title": "グループID",
+                        "type": "integer"
+                    },
+                    "subdomain": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "bpstudy"
+                        ],
+                        "title": "サブドメイン"
+                    },
+                    "title": {
+                        "examples": [
+                            "BPStudy"
+                        ],
+                        "title": "グループ名",
+                        "type": "string"
+                    },
+                    "url": {
+                        "examples": [
+                            "https://bpstudy.connpass.com/"
+                        ],
+                        "title": "グループのconnpass.com上のURL",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "subdomain",
+                    "title",
+                    "url"
+                ],
+                "title": "グループ",
+                "type": "object"
+            },
+            "EventIDRequestSchema": {
+                "description": "イベント詳細用スキーマ(Path parameters指定)",
+                "properties": {
+                    "id": {
+                        "description": "指定したイベントIDのオブジェクトを取得します。\n\nURLが `https://connpass.com/event/364/` のイベントの場合、イベントIDは `364` になります。",
+                        "examples": [
+                            364
+                        ],
+                        "title": "イベントID",
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id"
+                ],
+                "title": "EventIDRequestSchema",
+                "type": "object"
+            },
+            "PresentationListResponseSchema": {
+                "description": "イベント資料一覧",
+                "properties": {
+                    "results_returned": {
+                        "examples": [
+                            1
+                        ],
+                        "title": "含まれる検索結果の件数",
+                        "type": "integer"
+                    },
+                    "results_available": {
+                        "examples": [
+                            91
+                        ],
+                        "title": "検索結果の総件数",
+                        "type": "integer"
+                    },
+                    "results_start": {
+                        "examples": [
+                            1
+                        ],
+                        "title": "検索結果の開始位置",
+                        "type": "integer"
+                    },
+                    "presentations": {
+                        "items": {
+                            "$ref": "#/components/schemas/PresentationSchema"
+                        },
+                        "title": "資料一覧",
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "results_returned",
+                    "results_available",
+                    "results_start",
+                    "presentations"
+                ],
+                "title": "PresentationListResponseSchema",
+                "type": "object"
+            },
+            "PresentationSchema": {
+                "description": "イベント資料詳細",
+                "properties": {
+                    "user": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UserSummarySchema"
+                            }
+                        ],
+                        "description": "資料を投稿したユーザー",
+                        "title": "投稿者"
+                    },
+                    "url": {
+                        "examples": [
+                            "https://togetter.com/li/294875"
+                        ],
+                        "title": "資料URL",
+                        "type": "string"
+                    },
+                    "name": {
+                        "examples": [
+                            "Togetterまとめ"
+                        ],
+                        "title": "資料タイトル",
+                        "type": "string"
+                    },
+                    "presenter": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/UserSummarySchema"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "資料を発表したユーザー",
+                        "title": "ユーザー"
+                    },
+                    "presentation_type": {
+                        "description": "* `slide`: スライド\n* `movie`: 動画\n* `blog`: ブログなど",
+                        "examples": [
+                            "blog"
+                        ],
+                        "title": "資料タイプ",
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "examples": [
+                            "2012-04-29T19:44:03+09:00"
+                        ],
+                        "format": "date-time",
+                        "title": "投稿日時 (ISO-8601形式)",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user",
+                    "url",
+                    "name",
+                    "presenter",
+                    "presentation_type",
+                    "created_at"
+                ],
+                "title": "PresentationSchema",
+                "type": "object"
+            },
+            "UserSummarySchema": {
+                "description": "ユーザー概要",
+                "properties": {
+                    "id": {
+                        "examples": [
+                            8
+                        ],
+                        "title": "ユーザーID",
+                        "type": "integer"
+                    },
+                    "nickname": {
+                        "examples": [
+                            "haru860"
+                        ],
+                        "title": "ニックネーム",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nickname"
+                ],
+                "title": "ユーザー",
+                "type": "object"
+            },
+            "GroupSearchRequestSchema": {
+                "description": "グループ検索用スキーマ(Query parameters指定)",
+                "properties": {
+                    "subdomain": {
+                        "description": "指定したサブドメインのグループを取得します。複数指定可能です(最大100件)。",
+                        "examples": {
+                            "1": {
+                                "summary": "単一指定",
+                                "value": "bpstudy"
+                            },
+                            "2": {
+                                "summary": "複数指定",
+                                "value": [
+                                    "bpstudy",
+                                    "beproud"
+                                ]
+                            },
+                            "3": {
+                                "summary": "複数指定",
+                                "value": "bpstudy,beproud"
+                            }
+                        },
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "サブドメイン",
+                        "type": "array"
+                    }
+                },
+                "title": "GroupSearchRequestSchema",
+                "type": "object"
+            },
+            "GroupListResponseSchema": {
+                "description": "グループ一覧",
+                "properties": {
+                    "results_returned": {
+                        "examples": [
+                            1
+                        ],
+                        "title": "含まれる検索結果の件数",
+                        "type": "integer"
+                    },
+                    "results_available": {
+                        "examples": [
+                            91
+                        ],
+                        "title": "検索結果の総件数",
+                        "type": "integer"
+                    },
+                    "results_start": {
+                        "examples": [
+                            1
+                        ],
+                        "title": "検索結果の開始位置",
+                        "type": "integer"
+                    },
+                    "groups": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupSchema"
+                        },
+                        "title": "グループ一覧",
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "results_returned",
+                    "results_available",
+                    "results_start",
+                    "groups"
+                ],
+                "title": "GroupListResponseSchema",
+                "type": "object"
+            },
+            "GroupSchema": {
+                "description": "グループ詳細",
+                "properties": {
+                    "id": {
+                        "examples": [
+                            1
+                        ],
+                        "title": "グループID",
+                        "type": "integer"
+                    },
+                    "subdomain": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "bpstudy"
+                        ],
+                        "title": "サブドメイン"
+                    },
+                    "title": {
+                        "examples": [
+                            "BPStudy"
+                        ],
+                        "title": "グループ名",
+                        "type": "string"
+                    },
+                    "sub_title": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "株式会社ビープラウドが主催するIT勉強会"
+                        ],
+                        "title": "サブタイトル"
+                    },
+                    "url": {
+                        "examples": [
+                            "https://bpstudy.connpass.com/"
+                        ],
+                        "title": "グループのconnpass.com上のURL",
+                        "type": "string"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "概要"
+                    },
+                    "owner_text": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "株式会社ビープラウド"
+                        ],
+                        "title": "主催者"
+                    },
+                    "image_url": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "**このURLはある程度の時間で失効されます。外部サイトでの直接参照などはご遠慮ください。**",
+                        "title": "グループ画像URL"
+                    },
+                    "website_url": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "http://www.beproud.jp/"
+                        ],
+                        "title": "公式サイトURL"
+                    },
+                    "website_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "株式会社ビープラウド"
+                        ],
+                        "title": "公式サイト名"
+                    },
+                    "twitter_username": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "bpstudy"
+                        ],
+                        "title": "Twitterアカウント名"
+                    },
+                    "facebook_url": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "examples": [
+                            "https://www.facebook.com/beproud.inc"
+                        ],
+                        "title": "FacebookアカウントURL"
+                    },
+                    "member_users_count": {
+                        "examples": [
+                            "5743"
+                        ],
+                        "title": "グループの全メンバー数",
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "subdomain",
+                    "title",
+                    "sub_title",
+                    "url",
+                    "description",
+                    "owner_text",
+                    "image_url",
+                    "website_url",
+                    "website_name",
+                    "twitter_username",
+                    "facebook_url",
+                    "member_users_count"
+                ],
+                "title": "GroupSchema",
+                "type": "object"
+            },
+            "UserSearchRequestSchema": {
+                "description": "ユーザー検索条件用スキーマ(Query parameters指定)",
+                "properties": {
+                    "nickname": {
+                        "description": "指定したニックネームのユーザを検索します。複数指定可能です(最大100件)。",
+                        "examples": {
+                            "1": {
+                                "summary": "単一指定",
+                                "value": "haru860"
+                            },
+                            "2": {
+                                "summary": "複数指定",
+                                "value": [
+                                    "haru860",
+                                    "ian"
+                                ]
+                            },
+                            "3": {
+                                "summary": "複数指定",
+                                "value": "haru860,ian"
+                            }
+                        },
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "ニックネーム",
+                        "type": "array"
+                    }
+                },
+                "title": "UserSearchRequestSchema",
+                "type": "object"
+            },
+            "UserListResponseSchema": {
+                "description": "ユーザー一覧",
+                "properties": {
+                    "results_returned": {
+                        "examples": [
+                            1
+                        ],
+                        "title": "含まれる検索結果の件数",
+                        "type": "integer"
+                    },
+                    "results_available": {
+                        "examples": [
+                            91
+                        ],
+                        "title": "検索結果の総件数",
+                        "type": "integer"
+                    },
+                    "results_start": {
+                        "examples": [
+                            1
+                        ],
+                        "title": "検索結果の開始位置",
+                        "type": "integer"
+                    },
+                    "users": {
+                        "items": {
+                            "$ref": "#/components/schemas/UserSchema"
+                        },
+                        "title": "ユーザー一覧",
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "results_returned",
+                    "results_available",
+                    "results_start",
+                    "users"
+                ],
+                "title": "UserListResponseSchema",
+                "type": "object"
+            },
+            "UserSchema": {
+                "description": "ユーザー詳細",
+                "properties": {
+                    "id": {
+                        "examples": [
+                            8
+                        ],
+                        "title": "ユーザーID",
+                        "type": "integer"
+                    },
+                    "nickname": {
+                        "examples": [
+                            "haru860"
+                        ],
+                        "title": "ニックネーム",
+                        "type": "string"
+                    },
+                    "display_name": {
+                        "examples": [
+                            "佐藤 治夫"
+                        ],
+                        "title": "表示名",
+                        "type": "string"
+                    },
+                    "description": {
+                        "examples": [
+                            "株式会社ビープラウド代表取締役。connpass企画・開発・運営。\nhttp://twitter.com/haru860\nhttp://shacho.beproud.jp/"
+                        ],
+                        "title": "自己紹介文",
+                        "type": "string"
+                    },
+                    "url": {
+                        "examples": [
+                            "https://connpass.com/user/haru860/"
+                        ],
+                        "title": "connpass上のURL",
+                        "type": "string"
+                    },
+                    "image_url": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "**このURLはある程度の時間で失効されます。外部サイトでの直接参照などはご遠慮ください。**",
+                        "title": "ユーザーのサムネイル画像URL"
+                    },
+                    "created_at": {
+                        "examples": [
+                            "2011-10-20T18:23:03+09:00"
+                        ],
+                        "format": "date-time",
+                        "title": "利用開始日時 (ISO-8601形式)",
+                        "type": "string"
+                    },
+                    "attended_event_count": {
+                        "examples": [
+                            261
+                        ],
+                        "title": "参加イベント数",
+                        "type": "integer"
+                    },
+                    "organize_event_count": {
+                        "examples": [
+                            231
+                        ],
+                        "title": "管理イベント数",
+                        "type": "integer"
+                    },
+                    "presenter_event_count": {
+                        "examples": [
+                            34
+                        ],
+                        "title": "発表イベント数",
+                        "type": "integer"
+                    },
+                    "bookmark_event_count": {
+                        "examples": [
+                            57
+                        ],
+                        "title": "ブックマークイベント数",
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nickname",
+                    "display_name",
+                    "description",
+                    "url",
+                    "image_url",
+                    "created_at",
+                    "attended_event_count",
+                    "organize_event_count",
+                    "presenter_event_count",
+                    "bookmark_event_count"
+                ],
+                "title": "UserSchema",
+                "type": "object"
+            },
+            "UserNicknameRequestSchema": {
+                "description": "ユーザー詳細用スキーマ(Path parameters指定)",
+                "properties": {
+                    "nickname": {
+                        "description": "指定したニックネームのユーザを検索します。",
+                        "examples": [
+                            "haru860"
+                        ],
+                        "title": "ニックネーム",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "nickname"
+                ],
+                "title": "UserNicknameRequestSchema",
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "APIKeyAuth": {
+                "type": "apiKey",
+                "description": "API利用申請後に発行されるAPIキーを、HTTPリクエストヘッダーに指定してください。",
+                "in": "header",
+                "name": "X-API-Key"
+            }
+        }
+    },
+    "servers": []
+}

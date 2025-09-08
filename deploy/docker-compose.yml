@@ -1,0 +1,23 @@
+version: '3.9'
+services:
+  discord-bot:
+    build:
+      context: ../
+      dockerfile: packages/discord-bot/Dockerfile
+    env_file:
+      - ../.env
+    environment:
+      # Persist jobs to a mounted volume
+      - JOB_STORE_DIR=/data/jobs
+    volumes:
+      - ../data/jobs:/data/jobs
+    restart: unless-stopped
+
+# Usage:
+# 1) cp .env.example .env and fill values
+# 2) docker compose -f deploy/docker-compose.yml build
+# 3) docker compose -f deploy/docker-compose.yml up -d
+#
+# Register commands (one-time or when schema changes):
+# docker compose -f deploy/docker-compose.yml run --rm discord-bot node packages/discord-bot/dist/registerCommands.js
+

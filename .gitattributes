@@ -1,0 +1,9 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Windows scripts keep CRLF
+*.bat text eol=crlf
+
+# Generated artifacts
+packages/*/dist/* linguist-generated
+

@@ -1,0 +1,26 @@
+{
+  "name": "@connpass-discord-bot/api-client",
+  "version": "1.0.0",
+  "description": "TypeScript client for Connpass API v2",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "connpass",
+    "api",
+    "typescript",
+    "client"
+  ]
+}

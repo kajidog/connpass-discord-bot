@@ -1,0 +1,21 @@
+{
+  "name": "@connpass-discord-bot/job",
+  "version": "0.1.0",
+  "description": "Job scheduler and manager for Connpass Discord bot",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@connpass-discord-bot/api-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.6.0"
+  }
+}
