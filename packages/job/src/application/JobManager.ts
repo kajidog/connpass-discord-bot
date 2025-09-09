@@ -104,5 +104,17 @@ export class JobManager {
 
     return { ...resp, events: filtered };
   }
+
+  // Execute a job once and return matching events without sending to sink
+  async peekOnce(jobId: string): Promise<EventsResponse> {
+    const job = await this.store.get(jobId);
+    if (!job) throw new Error(`Job not found: ${jobId}`);
+
+    const params = buildSearchParams(job);
+    const resp = await this.client.searchEvents(params);
+    const filtered = filterByLocation(resp.events, job.location);
+
+    return { ...resp, events: filtered };
+  }
 }
 

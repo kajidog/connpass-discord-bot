@@ -63,7 +63,8 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
   - **keywords**: カンマ/スペース区切り
   - **range_days**: 検索範囲日数（既定 14）
   - **location**: 開催地（`place`/`address` の部分一致）
-- `/connpass status`: 現在の設定表示
+- `/connpass status`: 現在のチャンネルの監視設定を表示します。
+- `/connpass peek`: 現在の設定でイベントを検索し、通知せずに結果を表示します。デバッグに便利です。
 - `/connpass remove`: 監視の削除
 - `/connpass run`: 手動実行
 

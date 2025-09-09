@@ -18,6 +18,7 @@ export const commandData = new SlashCommandBuilder()
       .addStringOption((o) => o.setName('location').setDescription('Filter by location (place/address contains)'))
   )
   .addSubcommand((sub) => sub.setName('status').setDescription('Show current watch settings for this channel'))
+  .addSubcommand((sub) => sub.setName('peek').setDescription('Fetch and show events without sending to channel'))
   .addSubcommand((sub) => sub.setName('remove').setDescription('Remove watch for this channel'))
   .addSubcommand((sub) => sub.setName('run').setDescription('Run watch once immediately'))
   .toJSON();
@@ -96,6 +97,33 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
     try {
       const res = await manager.runOnce(jobId);
       await interaction.reply({ content: `Ran. Found ${res.events.length} events matching current filters.`, ephemeral: true });
+    } catch (e: any) {
+      await interaction.reply({ content: `Error: ${e?.message ?? e}`, ephemeral: true });
+    }
+    return;
+  }
+
+  if (sub === 'peek') {
+    try {
+      const res = await manager.peekOnce(jobId);
+      if (res.events.length === 0) {
+        await interaction.reply({ content: 'No events found matching current filters.', ephemeral: true });
+        return;
+      }
+
+      const eventSummaries = res.events
+        .slice(0, 5)
+        .map((e) => `- ${e.title} (${e.url})`)
+        .join('\n');
+      const moreCount = res.events.length > 5 ? res.events.length - 5 : 0;
+
+      let content = `Found ${res.events.length} events matching current filters.\n\n`;
+      content += eventSummaries;
+      if (moreCount > 0) {
+        content += `\n... and ${moreCount} more.`;
+      }
+
+      await interaction.reply({ content, ephemeral: true });
     } catch (e: any) {
       await interaction.reply({ content: `Error: ${e?.message ?? e}`, ephemeral: true });
     }
