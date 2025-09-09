@@ -7,6 +7,13 @@ function fmtDate(iso: string | undefined): string {
   return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
 }
 
+function fmtPeriod(start?: string, end?: string): string {
+  const s = fmtDate(start);
+  const e = fmtDate(end);
+  if (s && e && s !== e) return `${s} 〜 ${e}`;
+  return s || e || '';
+}
+
 export class DiscordSink implements JobSink {
   constructor(private readonly client: Client) {}
 
@@ -17,13 +24,19 @@ export class DiscordSink implements JobSink {
     const canSend = (c: any): c is { send: (options: any) => Promise<any> } => typeof c?.send === 'function';
     if (!canSend(channel)) return;
 
-    const lines = payload.events.map((e) => {
-      const when = fmtDate(e.startedAt);
-      const where = [e.place, e.address].filter(Boolean).join(' ');
-      return `• ${e.title}\n  ${when}${where ? ` | ${where}` : ''}\n  ${e.url}`;
-    });
-
-    const message = `Connpass: ${payload.events.length} new event(s) found\n\n${lines.join('\n\n')}`;
-    await channel.send({ content: message });
+    // Send one message per event with requested fields
+    for (const e of payload.events) {
+      const when = fmtPeriod(e.startedAt, e.endedAt);
+      const message = [
+        `${e.title}`,
+        `${e.url}`,
+        `実施日時: ${when}`,
+        `参加人数: ${e.participantCount}`,
+        `catch: ${e.catchPhrase ?? ''}`,
+      ].join('\n');
+      // send sequentially to preserve order
+      // eslint-disable-next-line no-await-in-loop
+      await channel.send({ content: message });
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { IEventRepository } from '../../domain/repositories';
-import { EventSearchParams, EventsResponse, PresentationsResponse } from '../../domain/entities';
+import { Event, EventSearchParams, EventsResponse, PresentationsResponse } from '../../domain/entities';
 import { HttpClient } from '../http/HttpClient';
 import { Validators } from '../../application/utils/validators';
 
@@ -9,8 +9,8 @@ export class EventRepository implements IEventRepository {
   async searchEvents(params: EventSearchParams): Promise<EventsResponse> {
     Validators.validateEventSearchParams(params);
     const queryParams = this.buildEventQueryParams(params);
-    const response = await this.httpClient.get<EventsResponse>('/events/', queryParams);
-    return response.data;
+    const response = await this.httpClient.get<any>('/events/', queryParams);
+    return this.mapEventsResponse(response.data);
   }
 
   async getEventPresentations(eventId: number): Promise<PresentationsResponse> {
@@ -35,5 +35,41 @@ export class EventRepository implements IEventRepository {
     if (params.start) queryParams.start = params.start;
 
     return queryParams;
+  }
+
+  private mapEventsResponse(data: any): EventsResponse {
+    // Accept both v1-like snake_case and v2-like camelCase
+    const eventsArray: any[] = data.events ?? data.event ?? [];
+
+    const events: Event[] = eventsArray.map((e: any) => ({
+      id: e.id ?? e.event_id,
+      title: e.title,
+      catchPhrase: e.catch ?? e.catchPhrase ?? '',
+      description: e.description ?? '',
+      url: e.url ?? e.event_url,
+      hashTag: e.hash_tag ?? e.hashTag ?? '',
+      startedAt: e.started_at ?? e.startedAt ?? '',
+      endedAt: e.ended_at ?? e.endedAt ?? '',
+      limit: e.limit ?? undefined,
+      participantCount: e.accepted ?? e.participantCount ?? 0,
+      waitingCount: e.waiting ?? e.waitingCount ?? 0,
+      ownerNickname: e.owner_nickname ?? e.ownerNickname ?? '',
+      ownerDisplayName: e.owner_display_name ?? e.ownerDisplayName ?? '',
+      place: e.place ?? undefined,
+      address: e.address ?? undefined,
+      lat: e.lat ?? undefined,
+      lon: e.lon ?? undefined,
+      groupId: (e.group?.id ?? e.series?.id) ?? undefined,
+      groupTitle: (e.group?.title ?? e.series?.title) ?? undefined,
+      groupUrl: (e.group?.url ?? e.series?.url) ?? undefined,
+      updatedAt: e.updated_at ?? e.updatedAt ?? '',
+    }));
+
+    return {
+      eventsReturned: data.results_returned ?? data.eventsReturned ?? events.length,
+      eventsAvailable: data.results_available ?? data.eventsAvailable ?? events.length,
+      eventsStart: data.results_start ?? data.eventsStart ?? 1,
+      events,
+    };
   }
 }
