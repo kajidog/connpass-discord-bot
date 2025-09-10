@@ -16,6 +16,7 @@ export const commandData = new SlashCommandBuilder()
       .addStringOption((o) => o.setName('keywords').setDescription('Comma or space separated keywords'))
       .addIntegerOption((o) => o.setName('range_days').setDescription('Days from now to search (default 14)').setMinValue(1).setMaxValue(90))
       .addStringOption((o) => o.setName('location').setDescription('Filter by location (place/address contains)'))
+      .addStringOption((o) => o.setName('hashtag').setDescription('Filter by hashtag (e.g. typescript, no #)'))
   )
   .addSubcommand((sub) =>
     sub
@@ -53,6 +54,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
     const keywordsRaw = interaction.options.getString('keywords') ?? '';
     const rangeDays = interaction.options.getInteger('range_days') ?? 14;
     const location = interaction.options.getString('location') ?? undefined;
+    const hashTagOpt = interaction.options.getString('hashtag') ?? undefined;
+    const hashTag = hashTagOpt ? hashTagOpt.replace(/^#/, '').trim() || undefined : undefined;
 
     const tokens = keywordsRaw
       .split(/[,\s]+/)
@@ -68,12 +71,13 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
       keywordOr: mode === 'or' ? tokens : undefined,
       rangeDays,
       location,
+      hashTag,
     } as const;
 
     await manager.upsert(config);
     await scheduler.restart(jobId);
     await interaction.reply({
-      content: `OK: watching this channel.\n- mode: ${mode}\n- keywords: ${tokens.join(', ') || '(none)'}\n- rangeDays: ${rangeDays}\n- intervalSec: ${intervalSec}\n- location: ${location ?? '(none)'}`,
+      content: `OK: watching this channel.\n- mode: ${mode}\n- keywords: ${tokens.join(', ') || '(none)'}\n- rangeDays: ${rangeDays}\n- intervalSec: ${intervalSec}\n- hashtag: ${hashTag ?? '(none)'}\n- location: ${location ?? '(none)'}`,
       ephemeral: true,
     });
     return;
@@ -92,6 +96,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
       keywordOr: existing?.keywordOr,
       rangeDays: existing?.rangeDays ?? 14,
       location: existing?.location,
+      hashTag: existing?.hashTag,
       order,
     });
     // restart to apply immediately
@@ -115,6 +120,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
         `- keywords(or): ${(job.keywordOr ?? []).join(', ') || '(none)'}\n` +
         `- rangeDays: ${job.rangeDays}\n` +
         `- intervalSec: ${job.intervalSec}\n` +
+        `- hashtag: ${job.hashTag ?? '(none)'}\n` +
         `- order: ${job.order ?? 2} ` +
         `(${(job.order ?? 2) === 1 ? 'updated_desc' : (job.order ?? 2) === 2 ? 'started_asc' : 'started_desc'})\n` +
         `- location: ${job.location ?? '(none)'}\n` +

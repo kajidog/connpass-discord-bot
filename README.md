@@ -63,6 +63,7 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
   - **keywords**: カンマ/スペース区切り
   - **range_days**: 検索範囲日数（既定 14）
   - **location**: 開催地（`place`/`address` の部分一致）
+  - **hashtag**: ハッシュタグ（先頭の `#` は不要、完全一致）
 - `/connpass sort`
   - **order**: 並び順の種類
     - `更新日時の降順 (updated_desc)` → API `order=1`

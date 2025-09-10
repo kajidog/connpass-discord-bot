@@ -38,6 +38,19 @@ function filterByLocation(events: Event[], location?: string): Event[] {
   });
 }
 
+function normalizeTag(s?: string): string | undefined {
+  if (!s) return undefined;
+  const t = s.trim();
+  if (!t) return undefined;
+  return t.replace(/^#/, '').toLowerCase();
+}
+
+function filterByHashTag(events: Event[], hashTag?: string): Event[] {
+  const wanted = normalizeTag(hashTag);
+  if (!wanted) return events;
+  return events.filter((e) => normalizeTag(e.hashTag) === wanted);
+}
+
 export class JobManager {
   constructor(
     private readonly client: ConnpassClient,
@@ -82,7 +95,7 @@ export class JobManager {
 
     const params = buildSearchParams(job);
     const resp = await this.client.searchEvents(params);
-    const filtered = filterByLocation(resp.events, job.location);
+    const filtered = filterByHashTag(filterByLocation(resp.events, job.location), job.hashTag);
 
     const newOnes: Event[] = [];
     // initialize state storage (Set is not serializable if persisted; but InMemory store is fine)

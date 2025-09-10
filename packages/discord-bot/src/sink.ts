@@ -24,19 +24,38 @@ export class DiscordSink implements JobSink {
     const canSend = (c: any): c is { send: (options: any) => Promise<any> } => typeof c?.send === 'function';
     if (!canSend(channel)) return;
 
-    // Send one message per event with requested fields
+    // Send one rich embed per event with key fields
     for (const e of payload.events) {
       const when = fmtPeriod(e.startedAt, e.endedAt);
-      const message = [
-        `${e.title}`,
-        `${e.url}`,
-        `実施日時: ${when}`,
-        `参加人数: ${e.participantCount}`,
-        `catch: ${e.catchPhrase ?? ''}`,
-      ].join('\n');
+      const place = e.place || '';
+      const address = e.address || '';
+      const venue = [place, address].filter(Boolean).join(' ');
+      const participants = e.limit ? `${e.participantCount}/${e.limit}` : `${e.participantCount}`;
+      const description = [e.catchPhrase]
+        .filter(Boolean)
+        .join('\n');
+
+      const embed = {
+        title: e.title,
+        url: e.url,
+        description: description || undefined,
+        color: 0x00a3ff,
+        fields: [
+          when ? { name: '開催日時', value: when, inline: false } : undefined,
+          venue ? { name: '会場', value: venue, inline: false } : undefined,
+          { name: '参加', value: participants, inline: true },
+          e.hashTag ? { name: 'ハッシュタグ', value: `#${e.hashTag}`, inline: true } : undefined,
+          e.groupTitle || e.groupUrl
+            ? { name: 'グループ', value: e.groupUrl ? `[${e.groupTitle ?? e.groupUrl}](${e.groupUrl})` : `${e.groupTitle}`, inline: false }
+            : undefined,
+        ].filter(Boolean),
+        timestamp: e.updatedAt,
+        footer: { text: '最終更新' },
+      } as const;
+
       // send sequentially to preserve order
       // eslint-disable-next-line no-await-in-loop
-      await channel.send({ content: message });
+      await channel.send({ embeds: [embed] });
     }
   }
 }
