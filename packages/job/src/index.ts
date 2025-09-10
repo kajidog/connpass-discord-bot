@@ -4,7 +4,8 @@ import { JobScheduler } from './application/JobScheduler';
 import { InMemoryJobStore } from './infrastructure/InMemoryJobStore';
 import { FileJobStore } from './infrastructure/FileJobStore';
 import { startHttpApi } from './infrastructure/HttpApiServer';
-import type { JobSink, JobConfig, JobStore, Job, NewEventsPayload } from './domain/types';
+import type { JobSink, JobConfig, Job, NewEventsPayload } from './domain/types';
+import type { IJobStore as JobStore } from './domain/repositories/IJobStore';
 
 export {
   JobManager,

@@ -15,7 +15,7 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 - **定期取得**: Connpass API からイベントをポーリング
 - **新着のみ通知**: `updatedAt` と `id` を用いた重複抑止
 - **柔軟な検索**: AND/OR キーワード、日付範囲、開催地フィルタ
-- **Discord 操作**: `/connpass` コマンドでチャンネル単位に設定
+- **Discord 操作**: `/connpass` コマンドでチャンネル単位に設定（ソート順の変更対応）
 - **永続化**: ファイルストア（任意）で再起動後も状態維持
 
 ---
@@ -63,6 +63,11 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
   - **keywords**: カンマ/スペース区切り
   - **range_days**: 検索範囲日数（既定 14）
   - **location**: 開催地（`place`/`address` の部分一致）
+- `/connpass sort`
+  - **order**: 並び順の種類
+    - `更新日時の降順 (updated_desc)` → API `order=1`
+    - `開催日時の昇順 (started_asc)` → API `order=2`（既定）
+    - `開催日時の降順 (started_desc)` → API `order=3`
 - `/connpass status`: 現在の設定表示
 - `/connpass remove`: 監視の削除
 - `/connpass run`: 手動実行
@@ -124,4 +129,3 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 - **テスト**: `pnpm test`
 
 詳細は `MEMO.md` を参照してください。
-

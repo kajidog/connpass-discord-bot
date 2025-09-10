@@ -51,6 +51,7 @@ export function startHttpApi(manager: JobManager, scheduler: JobScheduler, port 
           keywordOr: body.keywordOr,
           rangeDays: body.rangeDays ?? 14,
           location: body.location,
+          order: body.order as 1 | 2 | 3 | undefined,
         });
         await scheduler.restart(job.id);
         return send(res, 200, { job });
@@ -78,4 +79,3 @@ export function startHttpApi(manager: JobManager, scheduler: JobScheduler, port 
   server.listen(port);
   return server;
 }
-

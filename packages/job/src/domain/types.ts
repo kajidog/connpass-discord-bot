@@ -12,6 +12,8 @@ export interface JobConfig {
   rangeDays?: number; // default 14
   // location/address substring match (handled client-side)
   location?: string;
+  // sort order for API: 1=updated_at desc, 2=started_at asc, 3=started_at desc
+  order?: 1 | 2 | 3;
   // poll interval in seconds
   intervalSec: number; // default 1800 (30m)
 }
@@ -35,4 +37,3 @@ export interface NewEventsPayload {
 export interface JobSink {
   handleNewEvents: (payload: NewEventsPayload) => Promise<void> | void;
 }
-

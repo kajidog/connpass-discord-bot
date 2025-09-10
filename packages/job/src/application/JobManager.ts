@@ -18,7 +18,7 @@ function buildSearchParams(job: Job) {
   toDate.setDate(now.getDate() + rangeDays);
   const to = ymd(toDate);
 
-  const params: any = { ymdFrom: from, ymdTo: to, order: 2 };
+  const params: any = { ymdFrom: from, ymdTo: to, order: job.order ?? 2 };
 
   if (job.mode === 'and' && job.keyword && job.keyword.length) {
     params.keyword = job.keyword.join(',');
@@ -48,9 +48,15 @@ export class JobManager {
   async upsert(config: JobConfig): Promise<Job> {
     const existing = await this.store.get(config.id);
     const job: Job = {
-      ...config,
-      intervalSec: config.intervalSec ?? 1800,
-      rangeDays: config.rangeDays ?? 14,
+      id: config.id,
+      channelId: config.channelId ?? existing?.channelId ?? config.id,
+      mode: config.mode ?? existing?.mode ?? 'or',
+      keyword: config.keyword ?? existing?.keyword,
+      keywordOr: config.keywordOr ?? existing?.keywordOr,
+      rangeDays: config.rangeDays ?? existing?.rangeDays ?? 14,
+      location: config.location ?? existing?.location,
+      order: (config as any).order ?? existing?.order,
+      intervalSec: config.intervalSec ?? existing?.intervalSec ?? 1800,
       state: existing?.state ?? { seenEventIds: new Set<number>() },
     };
     await this.store.save(job);

@@ -17,6 +17,22 @@ export const commandData = new SlashCommandBuilder()
       .addIntegerOption((o) => o.setName('range_days').setDescription('Days from now to search (default 14)').setMinValue(1).setMaxValue(90))
       .addStringOption((o) => o.setName('location').setDescription('Filter by location (place/address contains)'))
   )
+  .addSubcommand((sub) =>
+    sub
+      .setName('sort')
+      .setDescription('Change sort type/order for search results')
+      .addStringOption((o) =>
+        o
+          .setName('order')
+          .setDescription('Select sort: updated_desc | started_asc | started_desc')
+          .setRequired(true)
+          .addChoices(
+            { name: '更新日時の降順 (updated_desc)', value: 'updated_desc' },
+            { name: '開催日時の昇順 (started_asc)', value: 'started_asc' },
+            { name: '開催日時の降順 (started_desc)', value: 'started_desc' },
+          ),
+      )
+  )
   .addSubcommand((sub) => sub.setName('status').setDescription('Show current watch settings for this channel'))
   .addSubcommand((sub) => sub.setName('remove').setDescription('Remove watch for this channel'))
   .addSubcommand((sub) => sub.setName('run').setDescription('Run watch once immediately'))
@@ -63,6 +79,28 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
     return;
   }
 
+  if (sub === 'sort') {
+    const v = interaction.options.getString('order', true);
+    const order = v === 'updated_desc' ? 1 : v === 'started_asc' ? 2 : 3; // started_desc -> 3
+    const existing = await manager.get(jobId);
+    const job = await manager.upsert({
+      id: jobId,
+      channelId: jobId,
+      intervalSec: existing?.intervalSec ?? 1800,
+      mode: existing?.mode ?? 'or',
+      keyword: existing?.keyword,
+      keywordOr: existing?.keywordOr,
+      rangeDays: existing?.rangeDays ?? 14,
+      location: existing?.location,
+      order,
+    });
+    // restart to apply immediately
+    await scheduler.restart(jobId);
+    const label = order === 1 ? '更新日時の降順 (updated_desc)' : order === 2 ? '開催日時の昇順 (started_asc)' : '開催日時の降順 (started_desc)';
+    await interaction.reply({ content: `OK: sort updated to: ${label}`, ephemeral: true });
+    return;
+  }
+
   if (sub === 'status') {
     const job = await manager.get(jobId);
     if (!job) {
@@ -77,6 +115,8 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
         `- keywords(or): ${(job.keywordOr ?? []).join(', ') || '(none)'}\n` +
         `- rangeDays: ${job.rangeDays}\n` +
         `- intervalSec: ${job.intervalSec}\n` +
+        `- order: ${job.order ?? 2} ` +
+        `(${(job.order ?? 2) === 1 ? 'updated_desc' : (job.order ?? 2) === 2 ? 'started_asc' : 'started_desc'})\n` +
         `- location: ${job.location ?? '(none)'}\n` +
         `- lastRunAt: ${job.state.lastRunAt ? new Date(job.state.lastRunAt).toLocaleString() : '(never)'}\n` +
         `- lastEventUpdatedAt: ${job.state.lastEventUpdatedAt ?? '(none)'}\n`,
@@ -102,4 +142,3 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
     return;
   }
 }
-
