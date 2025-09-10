@@ -1,5 +1,6 @@
 import { ConnpassClient, EventsResponse, Event } from '@connpass-discord-bot/api-client';
-import { Job, JobConfig, JobSink, JobStore } from '../domain/types';
+import { Job, JobConfig, JobSink } from '../domain/types';
+import { IJobStore } from '../domain/repositories/IJobStore';
 
 function ymd(date: Date): string {
   const y = date.getFullYear();
@@ -40,7 +41,7 @@ function filterByLocation(events: Event[], location?: string): Event[] {
 export class JobManager {
   constructor(
     private readonly client: ConnpassClient,
-    private readonly store: JobStore,
+    private readonly store: IJobStore,
     private readonly sink: JobSink,
   ) {}
 

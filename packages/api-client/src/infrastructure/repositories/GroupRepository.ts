@@ -1,7 +1,7 @@
 import { IGroupRepository } from '../../domain/repositories';
 import { GroupSearchParams, GroupsResponse } from '../../domain/entities';
 import { HttpClient } from '../http/HttpClient';
-import { Validators } from '../../application/utils/validators';
+import { Validators } from '../../domain/utils/validators';
 
 export class GroupRepository implements IGroupRepository {
   constructor(private httpClient: HttpClient) {}
