@@ -1,7 +1,7 @@
 import { IEventRepository } from '../../domain/repositories';
 import { Event, EventSearchParams, EventsResponse, PresentationsResponse } from '../../domain/entities';
 import { HttpClient } from '../http/HttpClient';
-import { Validators } from '../../application/utils/validators';
+import { Validators } from '../../domain/utils/validators';
 
 export class EventRepository implements IEventRepository {
   constructor(private httpClient: HttpClient) {}

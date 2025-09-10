@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { Job, JobStore } from '../domain/types';
+import { Job } from '../domain/types';
+import { IJobStore } from '../domain/repositories/IJobStore';
 
 interface PersistedJob extends Omit<Job, 'state'> {
   schemaVersion: 1;
@@ -41,7 +42,7 @@ function idToFilename(id: string): string {
   return `${encodeURIComponent(id)}.json`;
 }
 
-export class FileJobStore implements JobStore {
+export class FileJobStore implements IJobStore {
   constructor(private readonly dir: string) {}
 
   private async ensureDir() {

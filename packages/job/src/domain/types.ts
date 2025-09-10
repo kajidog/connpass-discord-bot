@@ -36,10 +36,3 @@ export interface JobSink {
   handleNewEvents: (payload: NewEventsPayload) => Promise<void> | void;
 }
 
-export interface JobStore {
-  save(job: Job): Promise<void>;
-  delete(jobId: string): Promise<void>;
-  get(jobId: string): Promise<Job | undefined>;
-  list(): Promise<Job[]>;
-}
-
