@@ -1,5 +1,6 @@
 import { JobSink, NewEventsPayload } from '@connpass-discord-bot/job';
 import type { Client, TextBasedChannel } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 
 function fmtDate(iso: string | undefined): string {
   if (!iso) return '';
@@ -53,9 +54,26 @@ export class DiscordSink implements JobSink {
         footer: { text: '最終更新' },
       } as const;
 
+      const baseButtons = [
+        new ButtonBuilder().setCustomId(`ev:detail:${e.id}`).setLabel('詳細').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`ev:pres:${e.id}`).setLabel('登壇').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setLabel('Web').setStyle(ButtonStyle.Link).setURL(e.url),
+      ];
+
+      const mapQuery = [place, address].filter(Boolean).join(' ');
+      const mapUrl = e.lat != null && e.lon != null
+        ? `https://www.google.com/maps?q=${e.lat},${e.lon}`
+        : (mapQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}` : null);
+
+      const rows = [
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          ...(mapUrl ? [...baseButtons, new ButtonBuilder().setLabel('地図').setStyle(ButtonStyle.Link).setURL(mapUrl)] : baseButtons),
+        ),
+      ];
+
       // send sequentially to preserve order
       // eslint-disable-next-line no-await-in-loop
-      await channel.send({ embeds: [embed] });
+      await channel.send({ embeds: [embed], components: rows });
     }
   }
 }

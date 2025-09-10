@@ -30,6 +30,9 @@ importers:
 
   packages/discord-bot:
     dependencies:
+      '@connpass-discord-bot/api-client':
+        specifier: workspace:*
+        version: link:../api-client
       '@connpass-discord-bot/job':
         specifier: workspace:*
         version: link:../job
