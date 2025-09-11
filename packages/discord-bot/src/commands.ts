@@ -37,6 +37,7 @@ export const commandData = new SlashCommandBuilder()
   .addSubcommand((sub) => sub.setName('status').setDescription('Show current watch settings for this channel'))
   .addSubcommand((sub) => sub.setName('remove').setDescription('Remove watch for this channel'))
   .addSubcommand((sub) => sub.setName('run').setDescription('Run watch once immediately'))
+  .addSubcommand((sub) => sub.setName('help').setDescription('Show help'))
   .toJSON();
 
 export async function handleCommand(interaction: ChatInputCommandInteraction<CacheType>, manager: JobManager, scheduler: JobScheduler) {
@@ -145,6 +146,28 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
     } catch (e: any) {
       await interaction.reply({ content: `Error: ${e?.message ?? e}`, ephemeral: true });
     }
+    return;
+  }
+
+  if (sub === 'help') {
+    const helpText = `
+**Connpass Bot Commands**
+
+- \`/connpass set [options]\`: このチャンネルの検索条件を設定/更新します。
+  - \`interval_sec\`: 検索インターバル（秒）。デフォルト1800秒。
+  - \`mode\`: キーワードの検索モード (and/or)。デフォルト or。
+  - \`keywords\`: カンマかスペース区切りのキーワード。
+  - \`range_days\`: 何日先まで検索するか。デフォルト14日。
+  - \`location\`: 場所（会場/住所）で絞り込み。
+  - \`hashtag\`: ハッシュタグで絞り込み（#不要）。
+- \`/connpass sort <order>\`: 検索結果のソート順を変更します。
+  - \`order\`: ソート順を更新日時(降順)、開催日時(昇順/降順)から選択。
+- \`/connpass status\`: 現在の検索設定を表示します。
+- \`/connpass remove\`: このチャンネルの検索設定を削除します。
+- \`/connpass run\`: すぐに一度だけ検索を実行します。
+- \`/connpass help\`: このヘルプメッセージを表示します。
+`;
+    await interaction.reply({ content: helpText, ephemeral: true });
     return;
   }
 }
