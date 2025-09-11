@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, CacheType } from 'discord.js';
-import { JobManager, JobScheduler } from '@connpass-discord-bot/job';
+import { JobManager, JobScheduler, UserManager } from '@connpass-discord-bot/job';
+import { ConnpassClient } from '@connpass-discord-bot/api-client';
 
 export const commandData = new SlashCommandBuilder()
   .setName('connpass')
@@ -22,6 +23,7 @@ export const commandData = new SlashCommandBuilder()
           .setAutocomplete(true)
       )
       .addStringOption((o) => o.setName('hashtag').setDescription('Filter by hashtag (e.g. typescript, no #)'))
+      .addStringOption((o) => o.setName('owner_nickname').setDescription('Filter by owner nickname'))
   )
   .addSubcommand((sub) =>
     sub
@@ -42,16 +44,44 @@ export const commandData = new SlashCommandBuilder()
   .addSubcommand((sub) => sub.setName('status').setDescription('Show current watch settings for this channel'))
   .addSubcommand((sub) => sub.setName('remove').setDescription('Remove watch for this channel'))
   .addSubcommand((sub) => sub.setName('run').setDescription('Run watch once immediately'))
+  .addSubcommandGroup((group) =>
+    group
+      .setName('user')
+      .setDescription('Manage user settings')
+      .addSubcommand((sub) =>
+        sub
+          .setName('register')
+          .setDescription('Register your connpass nickname')
+          .addStringOption((o) => o.setName('nickname').setDescription('Your connpass nickname').setRequired(true))
+      )
+  )
+  .addSubcommand((sub) => sub.setName('today').setDescription('Show your events for today'))
   .toJSON();
 
-export async function handleCommand(interaction: ChatInputCommandInteraction<CacheType>, manager: JobManager, scheduler: JobScheduler) {
+export async function handleCommand(
+  interaction: ChatInputCommandInteraction<CacheType>,
+  manager: JobManager,
+  scheduler: JobScheduler,
+  userManager: UserManager,
+  api: ConnpassClient,
+) {
   if (!interaction.channelId) {
     await interaction.reply({ content: 'Channel is not available.', ephemeral: true });
     return;
   }
 
   const sub = interaction.options.getSubcommand(true);
+  const group = interaction.options.getSubcommandGroup();
   const jobId = interaction.channelId;
+
+  if (group === 'user') {
+    if (sub === 'register') {
+      const nickname = interaction.options.getString('nickname', true);
+      await userManager.register(interaction.user.id, nickname);
+      await interaction.reply({ content: `Registered your connpass nickname as: ${nickname}`, ephemeral: true });
+    }
+    return;
+  }
 
   if (sub === 'set') {
     const intervalSec = interaction.options.getInteger('interval_sec') ?? 1800;
@@ -65,6 +95,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
       .filter(Boolean);
     const hashTagOpt = interaction.options.getString('hashtag') ?? undefined;
     const hashTag = hashTagOpt ? hashTagOpt.replace(/^#/, '').trim() || undefined : undefined;
+    const ownerNickname = interaction.options.getString('owner_nickname') ?? undefined;
 
     const tokens = keywordsRaw
       .split(/[,\s]+/)
@@ -81,12 +112,13 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
       rangeDays,
       prefecture: prefectures.length > 0 ? prefectures : undefined,
       hashTag,
+      ownerNickname,
     } as const;
 
     await manager.upsert(config);
     await scheduler.restart(jobId);
     await interaction.reply({
-      content: `OK: watching this channel.\n- mode: ${mode}\n- keywords: ${tokens.join(', ') || '(none)'}\n- rangeDays: ${rangeDays}\n- intervalSec: ${intervalSec}\n- hashtag: ${hashTag ?? '(none)'}\n- location: ${prefectures.join(', ') || '(none)'}`,
+      content: `OK: watching this channel.\n- mode: ${mode}\n- keywords: ${tokens.join(', ') || '(none)'}\n- rangeDays: ${rangeDays}\n- intervalSec: ${intervalSec}\n- hashtag: ${hashTag ?? '(none)'}\n- location: ${prefectures.join(', ') || '(none)'}\n- owner_nickname: ${ownerNickname ?? '(none)'}`,
       ephemeral: true,
     });
     return;
@@ -106,6 +138,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
       rangeDays: existing?.rangeDays ?? 14,
       prefecture: existing?.prefecture,
       hashTag: existing?.hashTag,
+      ownerNickname: existing?.ownerNickname,
       order,
     });
     // restart to apply immediately
@@ -130,6 +163,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
         `- rangeDays: ${job.rangeDays}\n` +
         `- intervalSec: ${job.intervalSec}\n` +
         `- hashtag: ${job.hashTag ?? '(none)'}\n` +
+        `- owner_nickname: ${job.ownerNickname ?? '(none)'}\n` +
         `- order: ${job.order ?? 2} ` +
         `(${(job.order ?? 2) === 1 ? 'updated_desc' : (job.order ?? 2) === 2 ? 'started_asc' : 'started_desc'})\n` +
         `- location: ${(job.prefecture ?? []).join(', ') || '(none)'}\n` +
@@ -154,6 +188,26 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
     } catch (e: any) {
       await interaction.reply({ content: `Error: ${e?.message ?? e}`, ephemeral: true });
     }
+    return;
+  }
+
+  if (sub === 'today') {
+    const user = await userManager.find(interaction.user.id);
+    if (!user) {
+      await interaction.reply({ content: 'Your connpass nickname is not registered. Use `/connpass user register` first.', ephemeral: true });
+      return;
+    }
+
+    const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const resp = await api.searchEvents({ nickname: user.connpassNickname, ymd: [ymd] });
+
+    if (resp.events.length === 0) {
+      await interaction.reply({ content: 'No events found for you today.', ephemeral: true });
+      return;
+    }
+
+    const eventLinks = resp.events.map(e => `- ${e.title} ${e.url}`).join('\n');
+    await interaction.reply({ content: `Your events for today:\n${eventLinks}`, ephemeral: true });
     return;
   }
 }

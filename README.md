@@ -64,6 +64,10 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
   - **range_days**: 検索範囲日数（既定 14）
   - **location**: 開催地の都道府県（オートコンプリート対応、カンマ区切りで複数指定可）
   - **hashtag**: ハッシュタグ（先頭の `#` は不要、完全一致）
+  - **owner_nickname**: 主催者ニックネーム
+- `/connpass user register`
+  - **nickname**: あなたの Connpass ニックネーム
+- `/connpass today`: あなたが参加登録している今日のイベントを表示
 - `/connpass sort`
   - **order**: 並び順の種類
     - `更新日時の降順 (updated_desc)` → API `order=1`

@@ -28,6 +28,9 @@ function buildSearchParams(job: Job) {
   if (job.prefecture && job.prefecture.length) {
     params.prefecture = job.prefecture;
   }
+  if (job.ownerNickname) {
+    params.ownerNickname = job.ownerNickname;
+  }
 
   return params;
 }
@@ -62,6 +65,8 @@ export class JobManager {
       keywordOr: config.keywordOr ?? existing?.keywordOr,
       rangeDays: config.rangeDays ?? existing?.rangeDays ?? 14,
       prefecture: config.prefecture ?? existing?.prefecture,
+      hashTag: config.hashTag ?? existing?.hashTag,
+      ownerNickname: config.ownerNickname ?? existing?.ownerNickname,
       order: (config as any).order ?? existing?.order,
       intervalSec: config.intervalSec ?? existing?.intervalSec ?? 1800,
       state: existing?.state ?? { seenEventIds: new Set<number>() },

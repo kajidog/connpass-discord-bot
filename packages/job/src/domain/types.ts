@@ -14,6 +14,8 @@ export interface JobConfig {
   prefecture?: string[];
   // hashtag filter (client-side). compare to event.hashTag, case-insensitive; omit leading '#'
   hashTag?: string;
+  // owner nickname filter (API-side)
+  ownerNickname?: string;
   // sort order for API: 1=updated_at desc, 2=started_at asc, 3=started_at desc
   order?: 1 | 2 | 3;
   // poll interval in seconds
