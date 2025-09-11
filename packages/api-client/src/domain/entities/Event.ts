@@ -26,6 +26,7 @@ export interface EventSearchParams {
   eventId?: number[];
   keyword?: string;
   keywordOr?: string;
+  ymd?: string[];
   ymdFrom?: string;
   ymdTo?: string;
   nickname?: string;

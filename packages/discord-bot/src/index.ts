@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, Events, InteractionType } from 'discord.js';
 import { ConnpassClient, type EventsResponse, type PresentationsResponse } from '@connpass-discord-bot/api-client';
-import { createInProcessRunner, FileJobStore } from '@connpass-discord-bot/job';
+import { createInProcessRunner, FileJobStore, FileUserStore, InMemoryUserStore, UserManager } from '@connpass-discord-bot/job';
 import { DiscordSink } from './sink';
 import { handleCommand } from './commands';
 import { prefectures } from './prefectures';
@@ -25,7 +25,9 @@ const jobStoreDir = process.env.JOB_STORE_DIR; // optional: use file persistence
 async function main() {
   const sink = new DiscordSink(client);
   const store = jobStoreDir ? new FileJobStore(jobStoreDir) : undefined;
+  const userStore = jobStoreDir ? new FileUserStore(jobStoreDir) : new InMemoryUserStore();
   const { manager, scheduler } = createInProcessRunner({ apiKey: connpassApiKey as string, sink, store });
+  const userManager = new UserManager(userStore);
   const api = new ConnpassClient({ apiKey: connpassApiKey as string });
 
   client.once(Events.ClientReady, async (c) => {
@@ -38,7 +40,7 @@ async function main() {
     // Slash command: /connpass
     if (interaction.type === InteractionType.ApplicationCommand && interaction.isChatInputCommand()) {
       if (interaction.commandName !== 'connpass') return;
-      await handleCommand(interaction, manager, scheduler);
+      await handleCommand(interaction, manager, scheduler, userManager, api);
       return;
     }
 
