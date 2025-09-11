@@ -22,14 +22,15 @@ export class EventRepository implements IEventRepository {
   private buildEventQueryParams(params: EventSearchParams): Record<string, any> {
     const queryParams: Record<string, any> = {};
 
-    if (params.eventId) queryParams.event_id = params.eventId.join(',');
+    if (params.eventId) queryParams.event_id = params.eventId;
     if (params.keyword) queryParams.keyword = params.keyword;
     if (params.keywordOr) queryParams.keyword_or = params.keywordOr;
     if (params.ymdFrom) queryParams.ymd_from = params.ymdFrom;
     if (params.ymdTo) queryParams.ymd_to = params.ymdTo;
     if (params.nickname) queryParams.nickname = params.nickname;
     if (params.ownerNickname) queryParams.owner_nickname = params.ownerNickname;
-    if (params.groupId) queryParams.group_id = params.groupId.join(',');
+    if (params.groupId) queryParams.group_id = params.groupId;
+    if (params.prefecture) queryParams.prefecture = params.prefecture;
     if (params.count) queryParams.count = params.count;
     if (params.order) queryParams.order = params.order;
     if (params.start) queryParams.start = params.start;

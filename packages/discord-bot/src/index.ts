@@ -3,6 +3,7 @@ import { ConnpassClient, type EventsResponse, type PresentationsResponse } from 
 import { createInProcessRunner, FileJobStore } from '@connpass-discord-bot/job';
 import { DiscordSink } from './sink';
 import { handleCommand } from './commands';
+import { prefectures } from './prefectures';
 
 const token = process.env.DISCORD_BOT_TOKEN;
 const connpassApiKey = process.env.CONNPASS_API_KEY;
@@ -38,6 +39,24 @@ async function main() {
     if (interaction.type === InteractionType.ApplicationCommand && interaction.isChatInputCommand()) {
       if (interaction.commandName !== 'connpass') return;
       await handleCommand(interaction, manager, scheduler);
+      return;
+    }
+
+    // Autocomplete for location
+    if (interaction.type === InteractionType.ApplicationCommandAutocomplete) {
+      if (interaction.commandName !== 'connpass') return;
+      const focused = interaction.options.getFocused(true);
+      if (focused.name === 'location') {
+        const query = focused.value.toLowerCase();
+        const filtered = prefectures
+          .filter(
+            (p) =>
+              p.value.toLowerCase().includes(query) ||
+              p.name.toLowerCase().includes(query)
+          )
+          .slice(0, 25);
+        await interaction.respond(filtered);
+      }
       return;
     }
 

@@ -50,7 +50,7 @@ export function startHttpApi(manager: JobManager, scheduler: JobScheduler, port 
           keyword: body.keyword,
           keywordOr: body.keywordOr,
           rangeDays: body.rangeDays ?? 14,
-          location: body.location,
+          prefecture: body.prefecture,
           hashTag: body.hashTag,
           order: body.order as 1 | 2 | 3 | undefined,
         });

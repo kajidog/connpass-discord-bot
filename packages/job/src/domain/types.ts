@@ -10,8 +10,8 @@ export interface JobConfig {
   mode: KeywordMode;
   // range in days from now (ymdFrom..ymdTo)
   rangeDays?: number; // default 14
-  // location/address substring match (handled client-side)
-  location?: string;
+  // prefecture filter (API-side)
+  prefecture?: string[];
   // hashtag filter (client-side). compare to event.hashTag, case-insensitive; omit leading '#'
   hashTag?: string;
   // sort order for API: 1=updated_at desc, 2=started_at asc, 3=started_at desc
