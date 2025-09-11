@@ -31,6 +31,7 @@ export interface EventSearchParams {
   nickname?: string;
   ownerNickname?: string;
   groupId?: number[];
+  prefecture?: string[];
   count?: number;
   order?: 1 | 2 | 3;
   start?: number;

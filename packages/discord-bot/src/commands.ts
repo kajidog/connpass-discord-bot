@@ -15,7 +15,12 @@ export const commandData = new SlashCommandBuilder()
       ))
       .addStringOption((o) => o.setName('keywords').setDescription('Comma or space separated keywords'))
       .addIntegerOption((o) => o.setName('range_days').setDescription('Days from now to search (default 14)').setMinValue(1).setMaxValue(90))
-      .addStringOption((o) => o.setName('location').setDescription('Filter by location (place/address contains)'))
+      .addStringOption((o) =>
+        o
+          .setName('location')
+          .setDescription('Filter by location (place/address contains)')
+          .setAutocomplete(true)
+      )
       .addStringOption((o) => o.setName('hashtag').setDescription('Filter by hashtag (e.g. typescript, no #)'))
   )
   .addSubcommand((sub) =>
@@ -53,7 +58,11 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
     const mode = (interaction.options.getString('mode') as 'and' | 'or' | null) ?? 'or';
     const keywordsRaw = interaction.options.getString('keywords') ?? '';
     const rangeDays = interaction.options.getInteger('range_days') ?? 14;
-    const location = interaction.options.getString('location') ?? undefined;
+    const locationRaw = interaction.options.getString('location') ?? '';
+    const prefectures = locationRaw
+      .split(/[,\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
     const hashTagOpt = interaction.options.getString('hashtag') ?? undefined;
     const hashTag = hashTagOpt ? hashTagOpt.replace(/^#/, '').trim() || undefined : undefined;
 
@@ -70,14 +79,14 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
       keyword: mode === 'and' ? tokens : undefined,
       keywordOr: mode === 'or' ? tokens : undefined,
       rangeDays,
-      location,
+      prefecture: prefectures.length > 0 ? prefectures : undefined,
       hashTag,
     } as const;
 
     await manager.upsert(config);
     await scheduler.restart(jobId);
     await interaction.reply({
-      content: `OK: watching this channel.\n- mode: ${mode}\n- keywords: ${tokens.join(', ') || '(none)'}\n- rangeDays: ${rangeDays}\n- intervalSec: ${intervalSec}\n- hashtag: ${hashTag ?? '(none)'}\n- location: ${location ?? '(none)'}`,
+      content: `OK: watching this channel.\n- mode: ${mode}\n- keywords: ${tokens.join(', ') || '(none)'}\n- rangeDays: ${rangeDays}\n- intervalSec: ${intervalSec}\n- hashtag: ${hashTag ?? '(none)'}\n- location: ${prefectures.join(', ') || '(none)'}`,
       ephemeral: true,
     });
     return;
@@ -95,7 +104,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
       keyword: existing?.keyword,
       keywordOr: existing?.keywordOr,
       rangeDays: existing?.rangeDays ?? 14,
-      location: existing?.location,
+      prefecture: existing?.prefecture,
       hashTag: existing?.hashTag,
       order,
     });
@@ -123,7 +132,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction<Cac
         `- hashtag: ${job.hashTag ?? '(none)'}\n` +
         `- order: ${job.order ?? 2} ` +
         `(${(job.order ?? 2) === 1 ? 'updated_desc' : (job.order ?? 2) === 2 ? 'started_asc' : 'started_desc'})\n` +
-        `- location: ${job.location ?? '(none)'}\n` +
+        `- location: ${(job.prefecture ?? []).join(', ') || '(none)'}\n` +
         `- lastRunAt: ${job.state.lastRunAt ? new Date(job.state.lastRunAt).toLocaleString() : '(never)'}\n` +
         `- lastEventUpdatedAt: ${job.state.lastEventUpdatedAt ?? '(none)'}\n`,
       ephemeral: true,

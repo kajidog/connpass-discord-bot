@@ -21,21 +21,15 @@ function buildSearchParams(job: Job) {
   const params: any = { ymdFrom: from, ymdTo: to, order: job.order ?? 2 };
 
   if (job.mode === 'and' && job.keyword && job.keyword.length) {
-    params.keyword = job.keyword.join(',');
+    params.keyword = job.keyword;
   } else if (job.mode === 'or' && job.keywordOr && job.keywordOr.length) {
-    params.keywordOr = job.keywordOr.join(',');
+    params.keywordOr = job.keywordOr;
+  }
+  if (job.prefecture && job.prefecture.length) {
+    params.prefecture = job.prefecture;
   }
 
   return params;
-}
-
-function filterByLocation(events: Event[], location?: string): Event[] {
-  if (!location) return events;
-  const needle = location.toLowerCase();
-  return events.filter((e) => {
-    const target = `${e.place ?? ''} ${e.address ?? ''}`.toLowerCase();
-    return target.includes(needle);
-  });
 }
 
 function normalizeTag(s?: string): string | undefined {
@@ -67,7 +61,7 @@ export class JobManager {
       keyword: config.keyword ?? existing?.keyword,
       keywordOr: config.keywordOr ?? existing?.keywordOr,
       rangeDays: config.rangeDays ?? existing?.rangeDays ?? 14,
-      location: config.location ?? existing?.location,
+      prefecture: config.prefecture ?? existing?.prefecture,
       order: (config as any).order ?? existing?.order,
       intervalSec: config.intervalSec ?? existing?.intervalSec ?? 1800,
       state: existing?.state ?? { seenEventIds: new Set<number>() },
@@ -95,7 +89,7 @@ export class JobManager {
 
     const params = buildSearchParams(job);
     const resp = await this.client.searchEvents(params);
-    const filtered = filterByHashTag(filterByLocation(resp.events, job.location), job.hashTag);
+    const filtered = filterByHashTag(resp.events, job.hashTag);
 
     const newOnes: Event[] = [];
     // initialize state storage (Set is not serializable if persisted; but InMemory store is fine)

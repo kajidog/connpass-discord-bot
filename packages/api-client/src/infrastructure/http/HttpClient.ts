@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
+import { stringify } from 'qs';
 import { ConnpassApiError, ConnpassRateLimitError, ConnpassTimeoutError, ConnpassError } from '../../domain/errors';
 
 export interface HttpClientConfig {
@@ -23,6 +24,9 @@ export class HttpClient {
         'X-API-Key': config.apiKey,
         'Content-Type': 'application/json',
       },
+      paramsSerializer: params => {
+        return stringify(params, { arrayFormat: 'repeat' });
+      }
     });
 
     this.setupInterceptors();

@@ -69,19 +69,19 @@ describe('JobManager', () => {
     expect(sink.payloads).toHaveLength(1);
   });
 
-  it('applies location filter to notifications', async () => {
+  it('passes prefecture filter to API client', async () => {
     const iso = new Date().toISOString();
     const evs = [
       makeEvent(10, 'Tokyo Event', iso, iso, 'Tokyo', 'Shinjuku'),
-      makeEvent(11, 'Osaka Event', iso, iso, 'Osaka', 'Namba'),
     ];
     (client.searchEvents as any).mockResolvedValue({ eventsReturned: evs.length, eventsAvailable: evs.length, eventsStart: 1, events: evs });
 
-    await manager.upsert({ id: 'job-2', channelId: 'ch2', intervalSec: 60, mode: 'or', keywordOr: ['JS'], location: 'Tokyo' });
-    const res = await manager.runOnce('job-2');
-    expect(res.events).toHaveLength(1);
-    expect(res.events[0].title).toContain('Tokyo');
-    expect(sink.payloads.at(-1).events).toHaveLength(1);
+    await manager.upsert({ id: 'job-2', channelId: 'ch2', intervalSec: 60, mode: 'or', keywordOr: ['JS'], prefecture: ['tokyo'] });
+    await manager.runOnce('job-2');
+
+    expect(client.searchEvents).toHaveBeenCalledWith(expect.objectContaining({
+      prefecture: ['tokyo'],
+    }));
   });
 
   it('treats events updated later as new even if seen by id earlier', async () => {
