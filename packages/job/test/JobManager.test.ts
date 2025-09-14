@@ -56,7 +56,7 @@ describe('JobManager', () => {
     ];
     (client.searchEvents as any).mockResolvedValue({ eventsReturned: evs.length, eventsAvailable: evs.length, eventsStart: 1, events: evs });
 
-    await manager.upsert({ id: 'job-1', channelId: 'ch1', intervalSec: 60, mode: 'or', keywordOr: ['TS'] });
+    await manager.upsert({ id: 'job-1', channelId: 'ch1', intervalSec: 60, keywordOr: ['TS'] });
 
     const res1 = await manager.runOnce('job-1');
     expect(res1.events).toHaveLength(2);
@@ -76,7 +76,7 @@ describe('JobManager', () => {
     ];
     (client.searchEvents as any).mockResolvedValue({ eventsReturned: evs.length, eventsAvailable: evs.length, eventsStart: 1, events: evs });
 
-    await manager.upsert({ id: 'job-2', channelId: 'ch2', intervalSec: 60, mode: 'or', keywordOr: ['JS'], prefecture: ['tokyo'] });
+    await manager.upsert({ id: 'job-2', channelId: 'ch2', intervalSec: 60, keywordOr: ['JS'], prefecture: ['tokyo'] });
     await manager.runOnce('job-2');
 
     expect(client.searchEvents).toHaveBeenCalledWith(expect.objectContaining({
@@ -97,7 +97,7 @@ describe('JobManager', () => {
       events: [makeEvent(100, 'Updatable', later, earlier)],
     });
 
-    await manager.upsert({ id: 'job-3', channelId: 'ch3', intervalSec: 60, mode: 'or', keywordOr: ['Node'] });
+    await manager.upsert({ id: 'job-3', channelId: 'ch3', intervalSec: 60, keywordOr: ['Node'] });
     await manager.runOnce('job-3');
     expect(sink.payloads.at(-1).events).toHaveLength(1);
 
@@ -113,4 +113,3 @@ describe('JobManager', () => {
     expect(sink.payloads.at(-1).events).toHaveLength(1);
   });
 });
-

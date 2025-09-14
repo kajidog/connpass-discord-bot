@@ -46,7 +46,6 @@ export function startHttpApi(manager: JobManager, scheduler: JobScheduler, port 
           id,
           channelId: body.channelId ?? id,
           intervalSec: body.intervalSec ?? 1800,
-          mode: body.mode ?? 'or',
           keyword: body.keyword,
           keywordOr: body.keywordOr,
           rangeDays: body.rangeDays ?? 14,

@@ -20,9 +20,10 @@ function buildSearchParams(job: Job) {
 
   const params: any = { ymdFrom: from, ymdTo: to, order: job.order ?? 2 };
 
-  if (job.mode === 'and' && job.keyword && job.keyword.length) {
+  if (job.keyword && job.keyword.length) {
     params.keyword = job.keyword;
-  } else if (job.mode === 'or' && job.keywordOr && job.keywordOr.length) {
+  }
+  if (job.keywordOr && job.keywordOr.length) {
     params.keywordOr = job.keywordOr;
   }
   if (job.prefecture && job.prefecture.length) {
@@ -60,7 +61,6 @@ export class JobManager {
     const job: Job = {
       id: config.id,
       channelId: config.channelId ?? existing?.channelId ?? config.id,
-      mode: config.mode ?? existing?.mode ?? 'or',
       keyword: config.keyword ?? existing?.keyword,
       keywordOr: config.keywordOr ?? existing?.keywordOr,
       rangeDays: config.rangeDays ?? existing?.rangeDays ?? 14,

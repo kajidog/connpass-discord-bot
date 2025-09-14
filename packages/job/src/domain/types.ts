@@ -1,13 +1,10 @@
-export type KeywordMode = 'and' | 'or';
-
 export interface JobConfig {
   id: string; // unique per channel/job
   // Discord channel identifier (string to support threads/subchannels)
   channelId: string;
   // search filters
-  keyword?: string[]; // used when mode === 'and'
-  keywordOr?: string[]; // used when mode === 'or'
-  mode: KeywordMode;
+  keyword?: string[]; // AND search keywords
+  keywordOr?: string[]; // OR search keywords
   // range in days from now (ymdFrom..ymdTo)
   rangeDays?: number; // default 14
   // prefecture filter (API-side)
