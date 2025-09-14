@@ -20,7 +20,7 @@ describe('JobScheduler', () => {
     const manager = new JobManager(client, store, sink);
     const scheduler = new JobScheduler(manager);
 
-    await manager.upsert({ id: 'sch-1', channelId: 'ch', mode: 'or', keywordOr: ['TS'], intervalSec: 10 });
+    await manager.upsert({ id: 'sch-1', channelId: 'ch', keywordOr: ['TS'], intervalSec: 10 });
 
     const runOnceSpy = vi.spyOn(manager, 'runOnce').mockResolvedValue({ eventsReturned: 0, eventsAvailable: 0, eventsStart: 1, events: [] });
 
@@ -38,4 +38,3 @@ describe('JobScheduler', () => {
     expect(runOnceSpy).toHaveBeenCalledTimes(3);
   });
 });
-

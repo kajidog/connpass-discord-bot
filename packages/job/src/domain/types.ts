@@ -1,19 +1,18 @@
-export type KeywordMode = 'and' | 'or';
-
 export interface JobConfig {
   id: string; // unique per channel/job
   // Discord channel identifier (string to support threads/subchannels)
   channelId: string;
   // search filters
-  keyword?: string[]; // used when mode === 'and'
-  keywordOr?: string[]; // used when mode === 'or'
-  mode: KeywordMode;
+  keyword?: string[]; // AND search keywords
+  keywordOr?: string[]; // OR search keywords
   // range in days from now (ymdFrom..ymdTo)
   rangeDays?: number; // default 14
   // prefecture filter (API-side)
   prefecture?: string[];
   // hashtag filter (client-side). compare to event.hashTag, case-insensitive; omit leading '#'
   hashTag?: string;
+  // owner nickname filter (API-side)
+  ownerNickname?: string;
   // sort order for API: 1=updated_at desc, 2=started_at asc, 3=started_at desc
   order?: 1 | 2 | 3;
   // poll interval in seconds

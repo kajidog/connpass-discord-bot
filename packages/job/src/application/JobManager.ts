@@ -20,13 +20,17 @@ function buildSearchParams(job: Job) {
 
   const params: any = { ymdFrom: from, ymdTo: to, order: job.order ?? 2 };
 
-  if (job.mode === 'and' && job.keyword && job.keyword.length) {
+  if (job.keyword && job.keyword.length) {
     params.keyword = job.keyword;
-  } else if (job.mode === 'or' && job.keywordOr && job.keywordOr.length) {
+  }
+  if (job.keywordOr && job.keywordOr.length) {
     params.keywordOr = job.keywordOr;
   }
   if (job.prefecture && job.prefecture.length) {
     params.prefecture = job.prefecture;
+  }
+  if (job.ownerNickname) {
+    params.ownerNickname = job.ownerNickname;
   }
 
   return params;
@@ -57,11 +61,12 @@ export class JobManager {
     const job: Job = {
       id: config.id,
       channelId: config.channelId ?? existing?.channelId ?? config.id,
-      mode: config.mode ?? existing?.mode ?? 'or',
       keyword: config.keyword ?? existing?.keyword,
       keywordOr: config.keywordOr ?? existing?.keywordOr,
       rangeDays: config.rangeDays ?? existing?.rangeDays ?? 14,
       prefecture: config.prefecture ?? existing?.prefecture,
+      hashTag: config.hashTag ?? existing?.hashTag,
+      ownerNickname: config.ownerNickname ?? existing?.ownerNickname,
       order: (config as any).order ?? existing?.order,
       intervalSec: config.intervalSec ?? existing?.intervalSec ?? 1800,
       state: existing?.state ?? { seenEventIds: new Set<number>() },

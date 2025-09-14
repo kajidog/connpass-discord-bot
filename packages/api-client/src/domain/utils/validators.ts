@@ -30,6 +30,14 @@ export class Validators {
     if (params.ymdTo && !/^\d{4}-\d{2}-\d{2}$/.test(params.ymdTo)) {
       throw new ConnpassValidationError('ymdTo must be in YYYY-MM-DD format');
     }
+
+    if (params.ymd) {
+      for (const d of params.ymd) {
+        if (!/^\d{8}$/.test(d)) {
+          throw new ConnpassValidationError('ymd must be an array of dates in YYYYMMDD format');
+        }
+      }
+    }
   }
 
   static validateGroupSearchParams(params: GroupSearchParams): void {

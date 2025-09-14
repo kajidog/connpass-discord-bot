@@ -25,6 +25,7 @@ export class EventRepository implements IEventRepository {
     if (params.eventId) queryParams.event_id = params.eventId;
     if (params.keyword) queryParams.keyword = params.keyword;
     if (params.keywordOr) queryParams.keyword_or = params.keywordOr;
+    if (params.ymd) queryParams.ymd = params.ymd.join(',');
     if (params.ymdFrom) queryParams.ymd_from = params.ymdFrom;
     if (params.ymdTo) queryParams.ymd_to = params.ymdTo;
     if (params.nickname) queryParams.nickname = params.nickname;

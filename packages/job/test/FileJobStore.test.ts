@@ -9,7 +9,6 @@ function sampleJob(id: string): Job {
   return {
     id,
     channelId: id,
-    mode: 'or',
     keywordOr: ['TS', 'Node'],
     intervalSec: 300,
     rangeDays: 14,
@@ -77,4 +76,3 @@ describe('FileJobStore', () => {
     expect(one).toBeUndefined();
   });
 });
-

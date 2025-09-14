@@ -59,11 +59,18 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 
 - `/connpass set`
   - **interval_sec**: 実行間隔秒（既定 1800）
-  - **mode**: `and` | `or`（既定 `or`）
-  - **keywords**: カンマ/スペース区切り
+  - **keywords_and**: AND 検索キーワード（カンマ/スペース区切り、複数可）
+  - **keywords_or**: OR 検索キーワード（カンマ/スペース区切り、複数可）
+  - 両方を同時に指定可能（AND と OR を併用）
   - **range_days**: 検索範囲日数（既定 14）
   - **location**: 開催地の都道府県（オートコンプリート対応、カンマ区切りで複数指定可）
   - **hashtag**: ハッシュタグ（先頭の `#` は不要、完全一致）
+  - **owner_nickname**: 主催者ニックネーム
+- `/connpass user register`
+  - **nickname**: あなたの Connpass ニックネーム
+- `/connpass user show`: 登録済みのニックネームを表示（未登録なら案内）
+- `/connpass user unregister`: ニックネームの登録解除
+- `/connpass today`: あなたが参加登録している今日のイベントを表示
 - `/connpass sort`
   - **order**: 並び順の種類
     - `更新日時の降順 (updated_desc)` → API `order=1`
@@ -74,6 +81,8 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 - `/connpass run`: 手動実行
 
 ジョブIDはチャンネルIDと同一で、通知先はそのチャンネルになります。
+
+メモ: ユーザーのニックネーム登録は `JOB_STORE_DIR` を設定した場合にファイルへ永続化されます。未設定時はプロセスのメモリ上に保持され、再起動で消えます。
 
 ---
 
