@@ -57,7 +57,7 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 
 ## スラッシュコマンド
 
-- `/connpass set`
+- `/connpass feed set`
   - **interval_sec**: 実行間隔秒（既定 1800）
   - **keywords_and**: AND 検索キーワード（カンマ/スペース区切り、複数可）
   - **keywords_or**: OR 検索キーワード（カンマ/スペース区切り、複数可）
@@ -65,20 +65,25 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
   - **range_days**: 検索範囲日数（既定 14）
   - **location**: 開催地の都道府県（オートコンプリート対応、カンマ区切りで複数指定可）
   - **hashtag**: ハッシュタグ（先頭の `#` は不要、完全一致）
+  - **order**: 並び順（任意）— `updated_desc` | `started_asc` | `started_desc`
   - **owner_nickname**: 主催者ニックネーム
+- `/connpass feed sort`
+  - **order**: 並び順の種類
+    - `更新日時の降順 (updated_desc)` → API `order=1`
+    - `開催日時の昇順 (started_asc)` → API `order=2`（既定）
+    - `開催日時の降順 (started_desc)` → API `order=3`
+- `/connpass feed status`: 現在の監視設定表示
+- `/connpass feed remove`: 監視の削除
+- `/connpass feed run`: 手動実行
 - `/connpass user register`
   - **nickname**: あなたの Connpass ニックネーム
 - `/connpass user show`: 登録済みのニックネームを表示（未登録なら案内）
 - `/connpass user unregister`: ニックネームの登録解除
 - `/connpass today`: あなたが参加登録している今日のイベントを表示
-- `/connpass sort`
-  - **order**: 並び順の種類
-    - `更新日時の降順 (updated_desc)` → API `order=1`
-    - `開催日時の昇順 (started_asc)` → API `order=2`（既定）
-    - `開催日時の降順 (started_desc)` → API `order=3`
-- `/connpass status`: 現在の設定表示
-- `/connpass remove`: 監視の削除
-- `/connpass run`: 手動実行
+- `/connpass report`: 条件に合うイベントを広めの既定値で集約して投稿（オンデマンド）
+  - 既定: `range_days=30`, `order=started_asc`
+  - オプション: `keywords_and`, `keywords_or`, `range_days`, `location`, `hashtag`, `owner_nickname`, `order`
+  - 出力は2000文字制限に合わせて自動分割
 
 ジョブIDはチャンネルIDと同一で、通知先はそのチャンネルになります。
 
