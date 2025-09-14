@@ -1,0 +1,33 @@
+{
+  "name": "@connpass-discord-bot/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Connpass API integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "connpass-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@connpass-discord-bot/api-client": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "connpass",
+    "api",
+    "server",
+    "model-context-protocol"
+  ]
+}
