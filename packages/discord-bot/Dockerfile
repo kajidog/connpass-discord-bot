@@ -13,8 +13,8 @@ RUN pnpm install --frozen-lockfile
 # Copy sources
 COPY . .
 
-# Build all packages (monorepo)
-RUN pnpm -r build
+# Build specific packages only (exclude mastra)
+RUN pnpm --filter=api-client --filter=job --filter=discord-bot build
 
 ENV NODE_ENV=production
 

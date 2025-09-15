@@ -13,7 +13,7 @@ describe('JobScheduler', () => {
     vi.useRealTimers();
   });
 
-  it('runs immediately and then on intervals', async () => {
+  it('schedules on intervals only (no immediate run)', async () => {
     const store = new InMemoryJobStore();
     const sink = { handleNewEvents: vi.fn() };
     const client = { searchEvents: vi.fn().mockResolvedValue({ eventsReturned: 0, eventsAvailable: 0, eventsStart: 1, events: [] }) } as unknown as ConnpassClient;
@@ -26,15 +26,15 @@ describe('JobScheduler', () => {
 
     await scheduler.start('sch-1');
 
-    // immediate call
-    expect(runOnceSpy).toHaveBeenCalledTimes(1);
+    // no immediate call
+    expect(runOnceSpy).toHaveBeenCalledTimes(0);
 
     // advance one interval
     vi.advanceTimersByTime(10_000);
-    expect(runOnceSpy).toHaveBeenCalledTimes(2);
+    expect(runOnceSpy).toHaveBeenCalledTimes(1);
 
     // advance again
     vi.advanceTimersByTime(10_000);
-    expect(runOnceSpy).toHaveBeenCalledTimes(3);
+    expect(runOnceSpy).toHaveBeenCalledTimes(2);
   });
 });
