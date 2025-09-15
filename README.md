@@ -83,12 +83,16 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 - `/connpass user unregister`: ニックネームの登録解除
 - `/connpass today`: あなたが参加登録している今日のイベントを表示
 - `/connpass report run`: 条件に合うイベントを集約して投稿（オンデマンド）。AI要約対応。
-  - 既定: `range_days=30`, `order=started_asc`
+  - 既定: `range_days=7`, `order=started_asc`
   - オプション: `ai`（この実行のみON/OFF）, `summary_template`（この実行のみの要約方針）, `keywords_and`, `keywords_or`, `range_days`, `location`, `hashtag`, `owner_nickname`, `order`
   - 出力は2000文字制限に合わせて自然な位置で自動分割
-- `/connpass report set`: このチャンネルの要約既定を設定
-  - オプション: `ai_enabled`（ON/OFF）, `summary_template`（要約方針のプリセット）
-- `/connpass report status`: このチャンネルの要約既定を表示
+- `/connpass report set`: このチャンネルの要約/スケジュール/レポート用フィルタ既定を設定
+  - オプション: 
+    - スケジュール: `enabled`, `interval_sec`, `range_days`
+    - レポート用フィルタ（feedと同等）: `keywords_and`, `keywords_or`, `location`, `hashtag`, `owner_nickname`, `order`
+    - AI要約: `ai_enabled`, `summary_template`
+  - 備考: レポート用フィルタを未指定のままにすると、feedの設定を継承して使用します。
+- `/connpass report status`: このチャンネルの要約/スケジュール既定を表示
 
 ジョブIDはチャンネルIDと同一で、通知先はそのチャンネルになります。
 

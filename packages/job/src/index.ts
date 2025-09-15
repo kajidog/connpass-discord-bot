@@ -7,7 +7,7 @@ import { InMemoryUserStore } from './infrastructure/InMemoryUserStore';
 import { FileJobStore } from './infrastructure/FileJobStore';
 import { FileUserStore } from './infrastructure/FileUserStore';
 import { startHttpApi } from './infrastructure/HttpApiServer';
-import type { JobSink, JobConfig, Job, NewEventsPayload } from './domain/types';
+import type { JobSink, JobConfig, Job, NewEventsPayload, ReportPayload, ReportPayloadMeta } from './domain/types';
 import type { IJobStore as JobStore } from './domain/repositories/IJobStore';
 import type { User } from './domain/User';
 import type { IUserStore as UserStore } from './domain/repositories/IUserStore';
@@ -26,6 +26,8 @@ export {
   type JobStore,
   type Job,
   type NewEventsPayload,
+  type ReportPayload,
+  type ReportPayloadMeta,
   type User,
   type UserStore,
 };
@@ -36,6 +38,10 @@ export class ConsoleSink implements JobSink {
     const titles = payload.events.map((e) => `- ${e.title} (${e.startedAt})`).join('\n');
     // eslint-disable-next-line no-console
     console.log(`[job:${payload.jobId}] New events for channel ${payload.channelId}:\n${titles}`);
+  }
+  handleReport(payload: ReportPayload): void {
+    // eslint-disable-next-line no-console
+    console.log(`[job:${payload.jobId}] Report for channel ${payload.channelId}: ${payload.events.length} events (${payload.meta.range.from} .. ${payload.meta.range.to})`);
   }
 }
 

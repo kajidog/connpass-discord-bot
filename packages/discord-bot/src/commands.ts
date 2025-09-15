@@ -68,7 +68,7 @@ export const commandData = new SlashCommandBuilder()
           .addStringOption((o) => o.setName('summary_template').setDescription('How to summarize (overrides channel default)'))
           .addStringOption((o) => o.setName('keywords_and').setDescription('Keywords (AND). Comma or space separated'))
           .addStringOption((o) => o.setName('keywords_or').setDescription('Keywords (OR). Comma or space separated'))
-          .addIntegerOption((o) => o.setName('range_days').setDescription('Days from now to search (default 30)').setMinValue(1).setMaxValue(120))
+          .addIntegerOption((o) => o.setName('range_days').setDescription('Days from now to search (default 7)').setMinValue(1).setMaxValue(120))
           .addStringOption((o) =>
             o
               .setName('location')
@@ -91,14 +91,37 @@ export const commandData = new SlashCommandBuilder()
       .addSubcommand((sub) =>
         sub
           .setName('set')
-          .setDescription('Set default AI summary settings for this channel')
+          .setDescription('Set AI summary and scheduled report settings for this channel')
+          .addBooleanOption((o) => o.setName('enabled').setDescription('Enable scheduled reports'))
+          .addIntegerOption((o) => o.setName('interval_sec').setDescription('Report interval seconds (default 86400)').setMinValue(60))
+          .addIntegerOption((o) => o.setName('range_days').setDescription('Days from now to include (default 7)').setMinValue(1).setMaxValue(120))
+          .addStringOption((o) => o.setName('keywords_and').setDescription('Report keywords (AND). Comma or space separated'))
+          .addStringOption((o) => o.setName('keywords_or').setDescription('Report keywords (OR). Comma or space separated'))
+          .addStringOption((o) =>
+            o
+              .setName('location')
+              .setDescription('Report filter by prefecture (autocomplete; comma/space separated)')
+              .setAutocomplete(true)
+          )
+          .addStringOption((o) => o.setName('hashtag').setDescription('Report filter by hashtag (e.g. typescript, no #)'))
+          .addStringOption((o) => o.setName('owner_nickname').setDescription('Report filter by owner nickname'))
+          .addStringOption((o) =>
+            o
+              .setName('order')
+              .setDescription('Report sort: updated_desc | started_asc | started_desc (optional)')
+              .addChoices(
+                { name: '更新日時の降順 (updated_desc)', value: 'updated_desc' },
+                { name: '開催日時の昇順 (started_asc)', value: 'started_asc' },
+                { name: '開催日時の降順 (started_desc)', value: 'started_desc' },
+              )
+          )
           .addBooleanOption((o) => o.setName('ai_enabled').setDescription('Default ON/OFF for AI summary'))
           .addStringOption((o) => o.setName('summary_template').setDescription('How to summarize (system prompt style)'))
       )
       .addSubcommand((sub) =>
         sub
           .setName('status')
-          .setDescription('Show current report (AI summary) settings for this channel')
+          .setDescription('Show current report schedule and AI settings for this channel')
       )
   )
   .addSubcommandGroup((group) =>
@@ -182,7 +205,8 @@ export async function handleCommand(
     return;
   }
 
-  if (sub === 'set') {
+  // Feed group: settings and operations for periodic feed
+  if (group === 'feed' && sub === 'set') {
     const intervalSec = interaction.options.getInteger('interval_sec') ?? 1800;
     const keywordsAndRaw = interaction.options.getString('keywords_and') ?? '';
     const keywordsOrRaw = interaction.options.getString('keywords_or') ?? '';
@@ -240,7 +264,7 @@ export async function handleCommand(
     return;
   }
 
-  if (sub === 'sort') {
+  if (group === 'feed' && sub === 'sort') {
     const v = interaction.options.getString('order', true);
     const order = v === 'updated_desc' ? 1 : v === 'started_asc' ? 2 : 3; // started_desc -> 3
     const existing = await manager.get(jobId);
@@ -263,7 +287,7 @@ export async function handleCommand(
     return;
   }
 
-  if (sub === 'status') {
+  if (group === 'feed' && sub === 'status') {
     const job = await manager.get(jobId);
     if (!job) {
       await interaction.reply({ content: 'No feed configured for this channel.', ephemeral: true });
@@ -287,14 +311,14 @@ export async function handleCommand(
     return;
   }
 
-  if (sub === 'remove') {
+  if (group === 'feed' && sub === 'remove') {
     await scheduler.stop(jobId);
     await manager.remove(jobId);
     await interaction.reply({ content: '監視を削除しました (/connpass feed remove)', ephemeral: true });
     return;
   }
 
-  if (sub === 'run') {
+  if (group === 'feed' && sub === 'run') {
     try {
       const existing = await manager.get(jobId);
       const res = await manager.runOnce(jobId);
@@ -328,7 +352,7 @@ export async function handleCommand(
     return;
   }
 
-  // New: report group (run/set/status) with optional AI summary via Mastra Agent API
+  // Report group (run/set/status) with optional AI summary via Mastra Agent API
   if (group === 'report') {
     const sub2 = sub; // run | set | status
 
@@ -402,44 +426,16 @@ export async function handleCommand(
     if (sub2 === 'set') {
       const aiEnabled = interaction.options.getBoolean('ai_enabled');
       const summaryTemplate = interaction.options.getString('summary_template') ?? undefined;
-      const existing = await manager.get(jobId);
-      const job = await manager.upsert({
-        id: jobId,
-        channelId: jobId,
-        intervalSec: existing?.intervalSec ?? 1800,
-        reportAiDefault: aiEnabled ?? existing?.reportAiDefault,
-        reportSummaryTemplate: summaryTemplate ?? existing?.reportSummaryTemplate,
-      });
-      await interaction.reply({
-        content:
-          'レポート要約の既定設定を更新しました (/connpass report set)\n' +
-          `- ai_enabled: ${job.reportAiDefault ? 'ON' : 'OFF'}\n` +
-          `- summary_template: ${job.reportSummaryTemplate ? job.reportSummaryTemplate.slice(0, 140) + (job.reportSummaryTemplate.length > 140 ? '…' : '') : '(none)'}\n`,
-        ephemeral: true,
-      });
-      return;
-    }
+      const enabled = interaction.options.getBoolean('enabled');
+      const intervalSec = interaction.options.getInteger('interval_sec') ?? undefined;
+      const rangeDays = interaction.options.getInteger('range_days') ?? undefined;
 
-    if (sub2 === 'status') {
-      const job = await manager.get(jobId);
-      await interaction.reply({
-        content:
-          'レポート要約の現在設定 (/connpass report status)\n' +
-          `- ai_enabled: ${job?.reportAiDefault ? 'ON' : 'OFF'}\n` +
-          `- summary_template: ${job?.reportSummaryTemplate ? job.reportSummaryTemplate.slice(0, 280) + (job.reportSummaryTemplate.length > 280 ? '…' : '') : '(none)'}\n`,
-        ephemeral: true,
-      });
-      return;
-    }
-
-    if (sub2 === 'run') {
-      // Broader defaults and consolidated posting
+      // report-specific filters
       const keywordsAndRaw = interaction.options.getString('keywords_and') ?? '';
       const keywordsOrRaw = interaction.options.getString('keywords_or') ?? '';
-      const rangeDays = interaction.options.getInteger('range_days') ?? 30;
       const locationRaw = interaction.options.getString('location') ?? '';
       const orderOpt = interaction.options.getString('order') as 'updated_desc' | 'started_asc' | 'started_desc' | null;
-      const order = orderOpt === 'updated_desc' ? 1 : orderOpt === 'started_desc' ? 3 : 2; // default started_asc -> 2
+      const order = orderOpt === 'updated_desc' ? 1 : orderOpt === 'started_asc' ? 2 : orderOpt === 'started_desc' ? 3 : undefined;
       const prefectures = locationRaw
         .split(/[\,\s]+/)
         .map((s) => s.trim())
@@ -456,9 +452,99 @@ export async function handleCommand(
         .map((s) => s.trim())
         .filter(Boolean);
 
+      const existing = await manager.get(jobId);
+      const job = await manager.upsert({
+        id: jobId,
+        channelId: jobId,
+        intervalSec: existing?.intervalSec ?? 1800,
+        reportAiDefault: aiEnabled ?? existing?.reportAiDefault,
+        reportSummaryTemplate: summaryTemplate ?? existing?.reportSummaryTemplate,
+        // below: scheduled report config (cast to any for forward-compat types)
+        ...( { reportEnabled: enabled ?? (existing as any)?.reportEnabled ?? false } as any ),
+        ...( { reportIntervalSec: intervalSec ?? (existing as any)?.reportIntervalSec ?? 24 * 60 * 60 } as any ),
+        ...( { reportRangeDays: rangeDays ?? (existing as any)?.reportRangeDays ?? 7 } as any ),
+        // report-specific filters
+        ...( tokensAnd.length ? ({ reportKeyword: tokensAnd } as any) : {} ),
+        ...( tokensOr.length ? ({ reportKeywordOr: tokensOr } as any) : {} ),
+        ...( prefectures.length ? ({ reportPrefecture: prefectures } as any) : {} ),
+        ...( hashTag !== undefined ? ({ reportHashTag: hashTag } as any) : {} ),
+        ...( ownerNickname ? ({ reportOwnerNickname: ownerNickname } as any) : {} ),
+        ...( order != null ? ({ reportOrder: order } as any) : {} ),
+      } as any);
+      await scheduler.restart(jobId);
+      await interaction.reply({
+        content:
+          'レポート設定を更新しました (/connpass report set)\n' +
+          `- schedule.enabled: ${ (job as any).reportEnabled ? 'ON' : 'OFF'}\n` +
+          `- schedule.intervalSec: ${ (job as any).reportIntervalSec }\n` +
+          `- schedule.rangeDays: ${ (job as any).reportRangeDays }\n` +
+          `- filters.keywords(and): ${ ((job as any).reportKeyword ?? []).join(', ') || '(inherit feed / none)'}\n` +
+          `- filters.keywords(or): ${ ((job as any).reportKeywordOr ?? []).join(', ') || '(inherit feed / none)'}\n` +
+          `- filters.prefecture: ${ ((job as any).reportPrefecture ?? []).join(', ') || '(inherit feed / none)'}\n` +
+          `- filters.hashtag: ${ (job as any).reportHashTag ?? '(inherit feed / none)'}\n` +
+          `- filters.owner_nickname: ${ (job as any).reportOwnerNickname ?? '(inherit feed / none)'}\n` +
+          `- order: ${ ((job as any).reportOrder ?? (job as any).order ?? 2) === 1 ? 'updated_desc' : ((job as any).reportOrder ?? (job as any).order ?? 2) === 2 ? 'started_asc' : 'started_desc' }\n` +
+          `- ai_enabled: ${job.reportAiDefault ? 'ON' : 'OFF'}\n` +
+          `- summary_template: ${job.reportSummaryTemplate ? job.reportSummaryTemplate.slice(0, 140) + (job.reportSummaryTemplate.length > 140 ? '…' : '') : '(none)'}\n`,
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (sub2 === 'status') {
+      const job = await manager.get(jobId);
+      await interaction.reply({
+        content:
+          'レポート設定の現在値 (/connpass report status)\n' +
+          `- schedule.enabled: ${ (job as any)?.reportEnabled ? 'ON' : 'OFF'}\n` +
+          `- schedule.intervalSec: ${ (job as any)?.reportIntervalSec ?? '(default)'}\n` +
+          `- schedule.rangeDays: ${ (job as any)?.reportRangeDays ?? '(default)'}\n` +
+          `- filters.keywords(and): ${ (((job as any)?.reportKeyword) ?? []).join(', ') || '(inherit feed / none)'}\n` +
+          `- filters.keywords(or): ${ (((job as any)?.reportKeywordOr) ?? []).join(', ') || '(inherit feed / none)'}\n` +
+          `- filters.prefecture: ${ (((job as any)?.reportPrefecture) ?? []).join(', ') || '(inherit feed / none)'}\n` +
+          `- filters.hashtag: ${ ((job as any)?.reportHashTag) ?? '(inherit feed / none)'}\n` +
+          `- filters.owner_nickname: ${ ((job as any)?.reportOwnerNickname) ?? '(inherit feed / none)'}\n` +
+          `- order: ${ (((job as any)?.reportOrder ?? (job as any)?.order ?? 2) === 1) ? 'updated_desc' : (((job as any)?.reportOrder ?? (job as any)?.order ?? 2) === 2) ? 'started_asc' : 'started_desc' }\n` +
+          `- ai_enabled: ${job?.reportAiDefault ? 'ON' : 'OFF'}\n` +
+          `- summary_template: ${job?.reportSummaryTemplate ? job.reportSummaryTemplate.slice(0, 280) + (job.reportSummaryTemplate.length > 280 ? '…' : '') : '(none)'}\n`,
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (sub2 === 'run') {
+      // Defaults: report-specific -> feed -> options
       const aiOpt = interaction.options.getBoolean('ai');
       const templateOverride = interaction.options.getString('summary_template') ?? undefined;
       const existing = await manager.get(jobId);
+      const orderOpt = interaction.options.getString('order') as 'updated_desc' | 'started_asc' | 'started_desc' | null;
+      const order = orderOpt === 'updated_desc'
+        ? 1
+        : orderOpt === 'started_asc'
+          ? 2
+          : orderOpt === 'started_desc'
+            ? 3
+            : ((existing as any)?.reportOrder ?? (existing?.order ?? 2));
+      const rangeDays = interaction.options.getInteger('range_days') ?? ((existing as any)?.reportRangeDays ?? 7);
+      const keywordsAndRaw = interaction.options.getString('keywords_and') ?? (((existing as any)?.reportKeyword ?? existing?.keyword ?? []) as string[]).join(', ');
+      const keywordsOrRaw = interaction.options.getString('keywords_or') ?? (((existing as any)?.reportKeywordOr ?? existing?.keywordOr ?? []) as string[]).join(', ');
+      const locationRaw = interaction.options.getString('location') ?? (((existing as any)?.reportPrefecture ?? existing?.prefecture ?? []) as string[]).join(', ');
+      const hashTagOpt = interaction.options.getString('hashtag') ?? ((existing as any)?.reportHashTag ?? existing?.hashTag ?? undefined);
+      const ownerNickname = interaction.options.getString('owner_nickname') ?? ((existing as any)?.reportOwnerNickname ?? existing?.ownerNickname ?? undefined);
+      const prefectures = locationRaw
+        .split(/[\,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const hashTag = typeof hashTagOpt === 'string' ? (hashTagOpt ? hashTagOpt.replace(/^#/, '').trim() || undefined : undefined) : undefined;
+      const tokensAnd = keywordsAndRaw
+        .split(/[\,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const tokensOr = keywordsOrRaw
+        .split(/[\,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
       const aiEnabled = aiOpt ?? existing?.reportAiDefault ?? false;
       const summaryTemplate = templateOverride ?? existing?.reportSummaryTemplate ?? undefined;
 

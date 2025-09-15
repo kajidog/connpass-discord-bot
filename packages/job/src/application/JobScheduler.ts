@@ -1,8 +1,10 @@
 import { Job } from '../domain/types';
 import { JobManager } from './JobManager';
 
+type Timers = { feed?: NodeJS.Timeout; report?: NodeJS.Timeout };
+
 export class JobScheduler {
-  private timers = new Map<string, NodeJS.Timeout>();
+  private timers = new Map<string, Timers>();
 
   constructor(private readonly manager: JobManager) {}
 
@@ -10,20 +12,34 @@ export class JobScheduler {
     await this.stop(jobId);
     const job = await this.manager.get(jobId);
     if (!job) throw new Error(`Job not found: ${jobId}`);
-    const intervalMs = (job.intervalSec ?? 1800) * 1000;
 
-    // run immediately, then on interval
+    const feedIntervalMs = (job.intervalSec ?? 1800) * 1000;
+    const timers: Timers = {};
+
+    // Feed: run immediately, then on interval
     this.manager.runOnce(jobId).catch(() => {});
-    const timer = setInterval(() => {
+    timers.feed = setInterval(() => {
       this.manager.runOnce(jobId).catch(() => {});
-    }, intervalMs);
-    this.timers.set(jobId, timer);
+    }, feedIntervalMs);
+
+    // Scheduled report: if enabled
+    if (job.reportEnabled) {
+      const reportIntervalMs = Math.max(60, job.reportIntervalSec ?? 24 * 60 * 60) * 1000;
+      // run immediately too
+      this.manager.postReport(jobId).catch(() => {});
+      timers.report = setInterval(() => {
+        this.manager.postReport(jobId).catch(() => {});
+      }, reportIntervalMs);
+    }
+
+    this.timers.set(jobId, timers);
   }
 
   async stop(jobId: string): Promise<void> {
     const t = this.timers.get(jobId);
     if (t) {
-      clearInterval(t);
+      if (t.feed) clearInterval(t.feed);
+      if (t.report) clearInterval(t.report);
       this.timers.delete(jobId);
     }
   }
@@ -45,4 +61,3 @@ export class JobScheduler {
     }
   }
 }
-
