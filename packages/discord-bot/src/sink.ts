@@ -5,7 +5,14 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 function fmtDate(iso: string | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
-  return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+  // Always render in Japan time for Discord feed
+  const opts: Intl.DateTimeFormatOptions = {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZone: 'Asia/Tokyo',
+  };
+  // e.g. 2025/09/15 19:00
+  return new Intl.DateTimeFormat('ja-JP', opts).format(d).replace(',', '');
 }
 
 function fmtPeriod(start?: string, end?: string): string {
@@ -57,6 +64,7 @@ export class DiscordSink implements JobSink {
       const baseButtons = [
         new ButtonBuilder().setCustomId(`ev:detail:${e.id}`).setLabel('詳細').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId(`ev:pres:${e.id}`).setLabel('登壇').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(`ev:conflict:${e.id}`).setLabel('重複チェック').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setLabel('Web').setStyle(ButtonStyle.Link).setURL(e.url),
       ];
 

@@ -127,6 +127,65 @@ async function main() {
           return;
         }
 
+        if (action === 'conflict') {
+          const user = await userManager.find(interaction.user.id);
+          if (!user) {
+            await interaction.editReply('まず `/connpass user register` であなたのconnpassニックネームを登録してください。');
+            return;
+          }
+
+          const evResp: EventsResponse = await api.searchEvents({ eventId: [eventId] });
+          const ev = evResp.events[0];
+          if (!ev) {
+            await interaction.editReply('イベント情報を取得できませんでした');
+            return;
+          }
+
+          const toDate = (s?: string | null) => (s ? new Date(s) : undefined);
+          const toJstYmd = (d: Date) => new Intl.DateTimeFormat('ja-JP', {
+            year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Tokyo',
+          }).format(d).replace(/\//g, ''); // yyyymmdd
+          const fmtJst = (d: Date) => new Intl.DateTimeFormat('ja-JP', {
+            year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tokyo',
+          }).format(d).replace(',', '');
+
+          const s1 = toDate(ev.startedAt);
+          const e1 = toDate(ev.endedAt) ?? (s1 ? new Date(s1.getTime() + 60 * 60 * 1000) : undefined);
+          if (!s1 || !e1) {
+            await interaction.editReply('イベントの開催日時が不明のため、重複チェックできませんでした。');
+            return;
+          }
+
+          // Fetch user's events around the date range of the target event (inclusive)
+          const ymdFrom = toJstYmd(s1);
+          const ymdTo = toJstYmd(e1);
+          const ue = await api.searchEvents({ nickname: user.connpassNickname, ymdFrom, ymdTo, count: 100, order: 2 });
+
+          const overlaps = ue.events.filter((u) => {
+            if (u.id === ev.id) return false; // ignore the same event
+            const s2 = toDate(u.startedAt);
+            const e2 = toDate(u.endedAt) ?? (s2 ? new Date(s2.getTime() + 60 * 60 * 1000) : undefined);
+            if (!s2 || !e2) return false;
+            return Math.max(s1.getTime(), s2.getTime()) < Math.min(e1.getTime(), e2.getTime());
+          });
+
+          if (overlaps.length === 0) {
+            await interaction.editReply('このイベントは、あなたの参加予定と重複していません。');
+            return;
+          }
+
+          const lines = overlaps
+            .sort((a, b) => new Date(a.startedAt || a.updatedAt).getTime() - new Date(b.startedAt || b.updatedAt).getTime())
+            .map((u) => {
+              const us = toDate(u.startedAt)!;
+              const ue2 = toDate(u.endedAt) ?? new Date(us.getTime() + 60 * 60 * 1000);
+              return `- ${fmtJst(us)} 〜 ${fmtJst(ue2)} ${u.title} ${u.url}`;
+            });
+
+          await interaction.editReply([`重複している可能性のある参加予定が見つかりました (${overlaps.length}件):`, ...lines].join('\n'));
+          return;
+        }
+
         await interaction.editReply('未知の操作です');
       } catch (e: any) {
         await interaction.editReply(`エラー: ${e?.message ?? e}`);
