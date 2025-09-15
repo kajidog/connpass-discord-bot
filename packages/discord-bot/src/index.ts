@@ -144,7 +144,7 @@ async function main() {
           const toDate = (s?: string | null) => (s ? new Date(s) : undefined);
           const toJstYmd = (d: Date) => new Intl.DateTimeFormat('ja-JP', {
             year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Tokyo',
-          }).format(d).replace(/\//g, ''); // yyyymmdd
+          }).format(d).replace(/\//g, '-'); // YYYY-MM-DD
           const fmtJst = (d: Date) => new Intl.DateTimeFormat('ja-JP', {
             year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tokyo',
           }).format(d).replace(',', '');

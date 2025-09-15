@@ -76,7 +76,7 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
     - `開催日時の降順 (started_desc)` → API `order=3`
 - `/connpass feed status`: 現在の監視設定表示
 - `/connpass feed remove`: 監視の削除
-- `/connpass feed run`: 手動実行
+- `/connpass feed run`: 手動実行（設定直後は自動実行しません）
 - `/connpass user register`
   - **nickname**: あなたの Connpass ニックネーム
 - `/connpass user show`: 登録済みのニックネームを表示（未登録なら案内）
@@ -125,7 +125,7 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 含まれるテスト:
 
 - `JobManager`: 新着判定、場所フィルタ、updatedAt 再通知
-- `JobScheduler`: 即時実行とインターバル実行（フェイクタイマー）
+- `JobScheduler`: 初回は実行せず、インターバルで実行（フェイクタイマー）
 - `FileJobStore`: CRUD と Set 復元、壊れたJSONの無視
 
 ---
@@ -134,7 +134,7 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 
 - **job ライブラリ**
   - `JobManager`: ジョブ登録/更新/削除/単発実行
-  - `JobScheduler`: `setInterval` による定期実行（即時実行あり）
+- `JobScheduler`: `setInterval` による定期実行（初回は即時実行しない）
   - `JobSink`: 通知先の抽象（Discord など）。デフォルト `ConsoleSink`
   - `JobStore`: ストアの抽象。`InMemoryJobStore` / `FileJobStore` 実装
   - `startHttpApi`: 軽量REST（任意機能）

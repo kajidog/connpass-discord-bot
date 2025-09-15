@@ -16,17 +16,14 @@ export class JobScheduler {
     const feedIntervalMs = (job.intervalSec ?? 1800) * 1000;
     const timers: Timers = {};
 
-    // Feed: run immediately, then on interval
-    this.manager.runOnce(jobId).catch(() => {});
+    // Feed: schedule periodic execution (no immediate run)
     timers.feed = setInterval(() => {
       this.manager.runOnce(jobId).catch(() => {});
     }, feedIntervalMs);
 
-    // Scheduled report: if enabled
+    // Scheduled report: if enabled, schedule periodic execution (no immediate run)
     if (job.reportEnabled) {
       const reportIntervalMs = Math.max(60, job.reportIntervalSec ?? 24 * 60 * 60) * 1000;
-      // run immediately too
-      this.manager.postReport(jobId).catch(() => {});
       timers.report = setInterval(() => {
         this.manager.postReport(jobId).catch(() => {});
       }, reportIntervalMs);

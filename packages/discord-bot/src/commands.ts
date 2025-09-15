@@ -280,7 +280,7 @@ export async function handleCommand(
       ownerNickname: existing?.ownerNickname,
       order,
     });
-    // restart to apply immediately
+    // restart scheduler to apply on next interval (no immediate run)
     await scheduler.restart(jobId);
     const label = order === 1 ? '更新日時の降順 (updated_desc)' : order === 2 ? '開催日時の昇順 (started_asc)' : '開催日時の降順 (started_desc)';
     await interaction.reply({ content: `並び順を更新しました(/connpass feed sort) \n - order: ${ label } `, ephemeral: true });
@@ -471,6 +471,7 @@ export async function handleCommand(
         ...( ownerNickname ? ({ reportOwnerNickname: ownerNickname } as any) : {} ),
         ...( order != null ? ({ reportOrder: order } as any) : {} ),
       } as any);
+      // restart scheduler to apply on next interval (no immediate run)
       await scheduler.restart(jobId);
       await interaction.reply({
         content:
