@@ -69,6 +69,8 @@ export class JobManager {
       ownerNickname: config.ownerNickname ?? existing?.ownerNickname,
       order: (config as any).order ?? existing?.order,
       intervalSec: config.intervalSec ?? existing?.intervalSec ?? 1800,
+      reportAiDefault: (config as any).reportAiDefault ?? existing?.reportAiDefault,
+      reportSummaryTemplate: (config as any).reportSummaryTemplate ?? existing?.reportSummaryTemplate,
       state: existing?.state ?? { seenEventIds: new Set<number>() },
     };
     await this.store.save(job);

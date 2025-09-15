@@ -17,6 +17,12 @@ export interface JobConfig {
   order?: 1 | 2 | 3;
   // poll interval in seconds
   intervalSec: number; // default 1800 (30m)
+
+  // --- report (AI summary) settings per channel ---
+  // default toggle for using Mastra Agent API summarization when running /connpass report run
+  reportAiDefault?: boolean;
+  // free-form instruction template on how to summarize. Interpreted as system prompt supplement
+  reportSummaryTemplate?: string;
 }
 
 export interface JobState {

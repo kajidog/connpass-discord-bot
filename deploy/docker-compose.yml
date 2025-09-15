@@ -1,5 +1,19 @@
 version: '3.9'
 services:
+  mastra:
+    build:
+      context: ../
+      dockerfile: packages/mastra/Dockerfile
+    env_file:
+      - ../.env
+    environment:
+      # Optional: disable telemetry
+      - MASTRA_TELEMETRY_DISABLED=1
+      # Expects OPENAI_API_KEY in ../.env
+    ports:
+      - "4111:4111"
+    restart: unless-stopped
+
   discord-bot:
     build:
       context: ../
@@ -9,8 +23,12 @@ services:
     environment:
       # Persist jobs to a mounted volume
       - JOB_STORE_DIR=/data/jobs
+      # Point bot to Mastra Agent API inside the compose network
+      - MASTRA_BASE_URL=http://mastra:4111
     volumes:
       - ../data/jobs:/data/jobs
+    depends_on:
+      - mastra
     restart: unless-stopped
 
 # Usage:
@@ -20,4 +38,3 @@ services:
 #
 # Register commands (one-time or when schema changes):
 # docker compose -f deploy/docker-compose.yml run --rm discord-bot node packages/discord-bot/dist/registerCommands.js
-
