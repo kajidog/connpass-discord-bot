@@ -69,6 +69,17 @@ export class JobManager {
       ownerNickname: config.ownerNickname ?? existing?.ownerNickname,
       order: (config as any).order ?? existing?.order,
       intervalSec: config.intervalSec ?? existing?.intervalSec ?? 1800,
+      reportAiDefault: (config as any).reportAiDefault ?? existing?.reportAiDefault,
+      reportSummaryTemplate: (config as any).reportSummaryTemplate ?? existing?.reportSummaryTemplate,
+      reportEnabled: (config as any).reportEnabled ?? existing?.reportEnabled ?? false,
+      reportIntervalSec: (config as any).reportIntervalSec ?? existing?.reportIntervalSec ?? 24 * 60 * 60,
+      reportRangeDays: (config as any).reportRangeDays ?? existing?.reportRangeDays ?? 7,
+      reportKeyword: (config as any).reportKeyword ?? existing?.reportKeyword,
+      reportKeywordOr: (config as any).reportKeywordOr ?? existing?.reportKeywordOr,
+      reportPrefecture: (config as any).reportPrefecture ?? existing?.reportPrefecture,
+      reportHashTag: (config as any).reportHashTag ?? existing?.reportHashTag,
+      reportOwnerNickname: (config as any).reportOwnerNickname ?? existing?.reportOwnerNickname,
+      reportOrder: (config as any).reportOrder ?? existing?.reportOrder,
       state: existing?.state ?? { seenEventIds: new Set<number>() },
     };
     await this.store.save(job);
@@ -123,5 +134,64 @@ export class JobManager {
     await this.store.save(job);
 
     return { ...resp, events: filtered };
+  }
+
+  // Generate a consolidated report payload with current job filters
+  async runReport(jobId: string): Promise<{ events: Event[]; meta: {
+    range: { from: string; to: string };
+    filters: { and: string[]; or: string[]; hashTag?: string; prefectures: string[]; ownerNickname?: string; order: 'updated_desc' | 'started_asc' | 'started_desc' };
+    ai: { enabled: boolean; template?: string };
+  } }> {
+    const job = await this.store.get(jobId);
+    if (!job) throw new Error(`Job not found: ${jobId}`);
+
+    // Build params similar to manual report run, but using reportRangeDays if set
+    const now = new Date();
+    const from = ymd(now);
+    const toDate = new Date(now);
+    const rangeDays = job.reportRangeDays ?? 7;
+    toDate.setDate(now.getDate() + rangeDays);
+    const to = ymd(toDate);
+
+    const orderForReport = job.reportOrder ?? job.order ?? 2;
+    const params: any = { ymdFrom: from, ymdTo: to, order: orderForReport };
+    const rk = job.reportKeyword ?? job.keyword;
+    const rko = job.reportKeywordOr ?? job.keywordOr;
+    const rp = job.reportPrefecture ?? job.prefecture;
+    const ro = job.reportOwnerNickname ?? job.ownerNickname;
+    const rh = job.reportHashTag ?? job.hashTag;
+    if (rk && rk.length) params.keyword = rk;
+    if (rko && rko.length) params.keywordOr = rko;
+    if (rp && rp.length) params.prefecture = rp;
+    if (ro) params.ownerNickname = ro;
+
+    const resp = await this.client.getAllEvents(params);
+    const filtered = filterByHashTag(resp.events, rh);
+
+    const orderLabel: 'updated_desc' | 'started_asc' | 'started_desc' = (orderForReport) === 1 ? 'updated_desc' : (orderForReport) === 2 ? 'started_asc' : 'started_desc';
+
+    const meta = {
+      range: { from, to },
+      filters: {
+        and: rk ?? [],
+        or: rko ?? [],
+        hashTag: rh,
+        prefectures: rp ?? [],
+        ownerNickname: ro,
+        order: orderLabel,
+      },
+      ai: { enabled: !!job.reportAiDefault, template: job.reportSummaryTemplate },
+    } as const;
+
+    return { events: filtered, meta };
+  }
+
+  async postReport(jobId: string): Promise<void> {
+    const job = await this.store.get(jobId);
+    if (!job) throw new Error(`Job not found: ${jobId}`);
+    const { events, meta } = await this.runReport(jobId);
+    if (typeof (this.sink as any).handleReport === 'function') {
+      await Promise.resolve((this.sink as any).handleReport({ jobId: job.id, channelId: job.channelId, events, meta }));
+    }
   }
 }

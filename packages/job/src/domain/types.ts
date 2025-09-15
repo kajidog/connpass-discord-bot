@@ -17,6 +17,29 @@ export interface JobConfig {
   order?: 1 | 2 | 3;
   // poll interval in seconds
   intervalSec: number; // default 1800 (30m)
+
+  // --- report (AI summary) settings per channel ---
+  // default toggle for using Mastra Agent API summarization when running /connpass report run
+  reportAiDefault?: boolean;
+  // free-form instruction template on how to summarize. Interpreted as system prompt supplement
+  reportSummaryTemplate?: string;
+
+  // --- scheduled report posting ---
+  // whether to periodically generate and post a consolidated report
+  reportEnabled?: boolean;
+  // report posting interval in seconds (default daily if enabled)
+  reportIntervalSec?: number;
+  // search period for scheduled report (days from now; default 30)
+  reportRangeDays?: number;
+
+  // --- report-specific filters (optional). If omitted, feed filters are used ---
+  reportKeyword?: string[];
+  reportKeywordOr?: string[];
+  reportPrefecture?: string[];
+  reportHashTag?: string;
+  reportOwnerNickname?: string;
+  // sort order for report. If unspecified, uses feed order or default 2
+  reportOrder?: 1 | 2 | 3;
 }
 
 export interface JobState {
@@ -37,4 +60,25 @@ export interface NewEventsPayload {
 
 export interface JobSink {
   handleNewEvents: (payload: NewEventsPayload) => Promise<void> | void;
+  handleReport?: (payload: ReportPayload) => Promise<void> | void;
+}
+
+export interface ReportPayloadMeta {
+  range: { from: string; to: string };
+  filters: {
+    and: string[];
+    or: string[];
+    hashTag?: string;
+    prefectures: string[];
+    ownerNickname?: string;
+    order: 'updated_desc' | 'started_asc' | 'started_desc';
+  };
+  ai: { enabled: boolean; template?: string };
+}
+
+export interface ReportPayload {
+  jobId: string;
+  channelId: string;
+  events: import('@connpass-discord-bot/api-client').Event[];
+  meta: ReportPayloadMeta;
 }

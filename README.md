@@ -40,6 +40,8 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 - `DISCORD_GUILD_ID`: 任意。指定時はギルドスコープでコマンド登録
 - `CONNPASS_API_KEY`: Connpass API キー
 - `JOB_STORE_DIR`: 任意。ファイル永続化ディレクトリ（例: `./data/jobs`）
+- `MASTRA_BASE_URL`: 任意。Mastra Agent API のベースURL（例: `http://localhost:4111`）
+  - 設定しない場合、AI要約は無効（非AI出力にフォールバック）
 
 ---
 
@@ -80,10 +82,17 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 - `/connpass user show`: 登録済みのニックネームを表示（未登録なら案内）
 - `/connpass user unregister`: ニックネームの登録解除
 - `/connpass today`: あなたが参加登録している今日のイベントを表示
-- `/connpass report`: 条件に合うイベントを広めの既定値で集約して投稿（オンデマンド）
-  - 既定: `range_days=30`, `order=started_asc`
-  - オプション: `keywords_and`, `keywords_or`, `range_days`, `location`, `hashtag`, `owner_nickname`, `order`
-  - 出力は2000文字制限に合わせて自動分割
+- `/connpass report run`: 条件に合うイベントを集約して投稿（オンデマンド）。AI要約対応。
+  - 既定: `range_days=7`, `order=started_asc`
+  - オプション: `ai`（この実行のみON/OFF）, `summary_template`（この実行のみの要約方針）, `keywords_and`, `keywords_or`, `range_days`, `location`, `hashtag`, `owner_nickname`, `order`
+  - 出力は2000文字制限に合わせて自然な位置で自動分割
+- `/connpass report set`: このチャンネルの要約/スケジュール/レポート用フィルタ既定を設定
+  - オプション: 
+    - スケジュール: `enabled`, `interval_sec`, `range_days`
+    - レポート用フィルタ（feedと同等）: `keywords_and`, `keywords_or`, `location`, `hashtag`, `owner_nickname`, `order`
+    - AI要約: `ai_enabled`, `summary_template`
+  - 備考: レポート用フィルタを未指定のままにすると、feedの設定を継承して使用します。
+- `/connpass report status`: このチャンネルの要約/スケジュール既定を表示
 
 ジョブIDはチャンネルIDと同一で、通知先はそのチャンネルになります。
 
