@@ -28,6 +28,147 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 
 ---
 
+## できること（概要）
+
+以下は主な機能ごとの「できること」要約と、詳細なコマンドの使い方です。まずは要約を確認し、必要に応じて展開してください。
+
+<details>
+<summary>/connpass feed: チャンネル監視（新着のみ通知）</summary>
+
+できること
+
+- キーワードや場所、期間でフィード（監視）を設定
+- 並び順（updated/started asc/desc）を変更
+- 現在の設定を確認・削除、手動実行
+
+コマンド
+
+- ` /connpass feed set `
+  - 概要: このチャンネルの監視条件を追加/更新
+  - 主なオプション:
+    - `interval_sec` 実行間隔秒（既定 1800）
+    - `keywords_and` AND 検索（カンマ/スペース区切り）
+    - `keywords_or` OR 検索（カンマ/スペース区切り）
+    - `range_days` 検索範囲日数（既定 14）
+    - `location` 都道府県（オートコンプリート、カンマ/スペース区切り可）
+    - `hashtag` ハッシュタグ（先頭 `#` 不要・完全一致）
+    - `owner_nickname` 主催者ニックネーム
+    - `order` `updated_desc | started_asc | started_desc`
+
+- ` /connpass feed sort `
+  - 概要: 並び順のみ更新
+  - `order`: `updated_desc | started_asc | started_desc`
+
+- ` /connpass feed status `: 現在の監視設定を表示
+
+- ` /connpass feed run `: 監視の手動実行（設定直後は自動実行しません）
+
+- ` /connpass feed remove `: 監視の削除
+
+補足
+
+- ジョブID＝チャンネルID。通知先はそのチャンネル。
+- `JOB_STORE_DIR` 設定時はファイル永続化、未設定時はメモリ保持。
+
+</details>
+
+<details>
+<summary>/connpass report: レポート生成（AI要約対応・スケジュール運用）</summary>
+
+できること
+
+- 条件に合うイベントを集約して投稿（オンデマンド）
+- AI要約のON/OFFや要約テンプレートの指定
+- チャンネル既定（AI要約・スケジュール・レポート用フィルタ）を設定/確認
+- 2000文字制限に合わせて自動分割投稿
+
+コマンド
+
+- ` /connpass report run `
+  - 概要: その場でレポートを生成して投稿
+  - 既定: `range_days=7`, `order=started_asc`
+  - 主なオプション:
+    - `ai` この実行のみAI要約をON/OFF（既定はチャンネル設定）
+    - `summary_template` この実行のみの要約指示
+    - `keywords_and`, `keywords_or`, `location`, `hashtag`, `owner_nickname`, `order`
+
+- ` /connpass report set `
+  - 概要: チャンネルの既定（AI要約・スケジュール・レポート用フィルタ）を設定
+  - 主なオプション:
+    - スケジュール: `enabled`, `interval_sec`, `range_days`
+    - レポート用フィルタ: `keywords_and`, `keywords_or`, `location`, `hashtag`, `owner_nickname`, `order`
+    - AI要約: `ai_enabled`, `summary_template`
+  - 備考: レポート用フィルタ未指定時は feed 設定を継承
+
+- ` /connpass report status `: 現在のチャンネル既定を表示
+
+補足
+
+- `MASTRA_BASE_URL` 未設定時は非AIの通常レポートに自動フォールバックします。
+- スケジュール投稿は「初回即時実行なし」。指定間隔ごとに投稿します。
+
+</details>
+
+<details>
+<summary>/connpass user: ユーザー設定（ニックネーム）</summary>
+
+できること
+
+- 自分の connpass ニックネームの登録/表示/解除
+- 登録済みニックネームは重複チェックや「今日の予定」で使用
+
+コマンド
+
+- ` /connpass user register nickname:<your_nickname> `
+- ` /connpass user show `（取得できればID/プロフィールURLも表示）
+- ` /connpass user unregister `
+
+補足
+
+- `JOB_STORE_DIR` 設定時はファイル永続化、未設定時はメモリ保持（再起動で消去）。
+
+</details>
+
+<details>
+<summary>/connpass today: 本日の参加予定を表示</summary>
+
+できること
+
+- 登録済みニックネームのユーザーについて、JST基準で「今日」のイベントを一覧表示
+
+コマンド
+
+- ` /connpass today `
+
+補足
+
+- 並び順は開始日時昇順。時刻はJST表示。
+
+</details>
+
+<details>
+<summary>メッセージボタン（イベント投稿）</summary>
+
+できること
+
+- 各イベント投稿に付くボタンで、追加情報の取得や導線を提供
+
+ボタンの動作
+
+- `詳細`: イベント詳細を専用スレッドに埋め込み投稿
+- `登壇`: 登壇情報（タイトル/登壇者/リンク）をスレッドに投稿
+- `重複チェック`: 自分の参加予定と時間帯が重なるイベントを照会（ニックネーム登録が必要）
+- `Web`: Connpass イベントページを開く
+- `地図`: 緯度経度または住所から Google マップを開く
+
+補足
+
+- スレッド名は `イベント詳細-<ID>`。OG画像を可能な範囲で添付（最大5MB）。
+
+</details>
+
+---
+
 ## 必要環境
 
 - **Node**: `>= 18`（Discord ボット/ジョブ）
