@@ -1,6 +1,100 @@
 import { JobSink, NewEventsPayload } from '@connpass-discord-bot/job';
 import type { Client, TextBasedChannel } from 'discord.js';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+
+// Simple in-memory cache for event page -> image URL
+const imageUrlCache = new Map<string, string | null>();
+
+async function fetchOgImage(url: string): Promise<string | undefined> {
+  try {
+    // Use global fetch (Node 18+). Access via any to avoid DOM typings.
+    const g: any = globalThis as any;
+    if (typeof g.fetch !== 'function') return undefined;
+
+    // quick cache hit
+    const cached = imageUrlCache.get(url);
+    if (cached !== undefined) return cached ?? undefined;
+
+    const controller: any = new (g.AbortController || (class { signal: any; abort() {} }))();
+    const timer = setTimeout(() => {
+      try { controller.abort(); } catch {}
+    }, 2500);
+
+    const res: any = await g.fetch(url, {
+      signal: controller.signal,
+      headers: { 'user-agent': 'Mozilla/5.0 (DiscordBot Image Fetcher)' },
+    }).catch(() => null);
+    clearTimeout(timer);
+    if (!res || !res.ok) { imageUrlCache.set(url, null); return undefined; }
+    const html = await res.text().catch(() => '');
+    if (!html) { imageUrlCache.set(url, null); return undefined; }
+
+    const metaRe = /<meta\s+(?:property|name)=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i;
+    const m = html.match(metaRe);
+    let img = m?.[1];
+    if (!img) {
+      // try twitter:image as a fallback
+      const tw = html.match(/<meta\s+(?:property|name)=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i);
+      img = tw?.[1];
+    }
+    if (!img) { imageUrlCache.set(url, null); return undefined; }
+
+    // resolve relative URLs if any
+    try {
+      const abs = new URL(img, url).toString();
+      imageUrlCache.set(url, abs);
+      return abs;
+    } catch {
+      imageUrlCache.set(url, null);
+      return undefined;
+    }
+  } catch {
+    imageUrlCache.set(url, null);
+    return undefined;
+  }
+}
+
+async function downloadImageAsAttachment(url: string, nameHint: string): Promise<AttachmentBuilder | undefined> {
+  try {
+    const g: any = globalThis as any;
+    if (typeof g.fetch !== 'function') return undefined;
+    const controller: any = new (g.AbortController || (class { signal: any; abort() {} }))();
+    const timer = setTimeout(() => { try { controller.abort(); } catch {} }, 5000);
+    const res: any = await g.fetch(url, { signal: controller.signal, headers: { 'user-agent': 'Mozilla/5.0 (DiscordBot Image Fetcher)' } }).catch(() => null);
+    clearTimeout(timer);
+    if (!res || !res.ok) return undefined;
+    const ct: string = String(res.headers?.get?.('content-type') || '');
+    if (!ct.toLowerCase().startsWith('image/')) return undefined;
+    const lenHeader = res.headers?.get?.('content-length');
+    const contentLength = lenHeader ? Number(lenHeader) : undefined;
+    const MAX = 5 * 1024 * 1024; // 5 MB safety cap
+    if (contentLength && Number.isFinite(contentLength) && contentLength > MAX) return undefined;
+    const ab = await res.arrayBuffer().catch(() => null);
+    if (!ab) return undefined;
+    const buf = Buffer.from(ab);
+    if (buf.length > MAX) return undefined;
+
+    let ext = '';
+    if (ct.includes('jpeg')) ext = 'jpg';
+    else if (ct.includes('png')) ext = 'png';
+    else if (ct.includes('gif')) ext = 'gif';
+    else if (ct.includes('webp')) ext = 'webp';
+    else if (ct.includes('bmp')) ext = 'bmp';
+    if (!ext) {
+      try {
+        const u = new URL(url);
+        const m = (u.pathname.split('/').pop() || '').match(/\.([a-zA-Z0-9]+)$/);
+        if (m) ext = m[1];
+      } catch {}
+    }
+    if (!ext) ext = 'jpg';
+    const safeBase = nameHint.replace(/[^a-zA-Z0-9_-]+/g, '').slice(0, 32) || 'image';
+    const fileName = `${safeBase}.${ext}`;
+    return new AttachmentBuilder(buf, { name: fileName });
+  } catch {
+    return undefined;
+  }
+}
 
 function fmtDate(iso: string | undefined): string {
   if (!iso) return '';
@@ -43,7 +137,7 @@ export class DiscordSink implements JobSink {
         .filter(Boolean)
         .join('\n');
 
-      const embed = {
+      const embed: any = {
         title: e.title,
         url: e.url,
         description: description || undefined,
@@ -59,7 +153,21 @@ export class DiscordSink implements JobSink {
         ].filter(Boolean),
         timestamp: e.updatedAt,
         footer: { text: '最終更新' },
-      } as const;
+      };
+
+      // Prefer API-provided imageUrl; fallback to fetching og:image, then try downloading as attachment
+      const imgUrl = e.imageUrl || await fetchOgImage(e.url).catch(() => undefined);
+      let files: AttachmentBuilder[] | undefined;
+      if (imgUrl) {
+        const attachment = await downloadImageAsAttachment(imgUrl, `event-${e.id}`);
+        if (attachment) {
+          embed.image = { url: `attachment://${attachment.name}` } as any;
+          files = [attachment];
+        } else {
+          // last resort: hotlink image URL (may expire)
+          embed.image = { url: imgUrl } as any;
+        }
+      }
 
       const baseButtons = [
         new ButtonBuilder().setCustomId(`ev:detail:${e.id}`).setLabel('詳細').setStyle(ButtonStyle.Primary),
@@ -81,7 +189,7 @@ export class DiscordSink implements JobSink {
 
       // send sequentially to preserve order
       // eslint-disable-next-line no-await-in-loop
-      await channel.send({ embeds: [embed], components: rows });
+      await channel.send({ embeds: [embed], components: rows, files });
     }
   }
 

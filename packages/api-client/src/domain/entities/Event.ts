@@ -4,6 +4,8 @@ export interface Event {
   catchPhrase: string;
   description: string;
   url: string;
+  // Event image URL from API v2 (may expire; do not hotlink persistently)
+  imageUrl?: string;
   hashTag: string;
   startedAt: string;
   endedAt: string;
