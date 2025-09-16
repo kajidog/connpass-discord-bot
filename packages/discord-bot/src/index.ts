@@ -67,75 +67,10 @@ async function main() {
     if (interaction.isButton()) {
       const id = interaction.customId;
       if (!id.startsWith('ev:')) return;
-      await interaction.deferReply({ ephemeral: true });
       try {
         const [, action, raw] = id.split(':');
         const eventId = Number(raw);
         if (!Number.isFinite(eventId)) throw new Error('invalid event id');
-
-        // Find or create a thread from the parent message
-        const parentMessage: any = interaction.message as any;
-        let thread = parentMessage.thread ?? null;
-        if (!thread) {
-          const name = `イベント詳細-${eventId}`;
-          thread = await parentMessage.startThread({ name, autoArchiveDuration: 1440 }).catch(() => null);
-        }
-
-        if (!thread) throw new Error('スレッドを作成できませんでした');
-
-        if (action === 'detail') {
-          const resp: EventsResponse = await api.searchEvents({ eventId: [eventId] });
-          const e = resp.events[0];
-          if (!e) throw new Error('イベントが見つかりません');
-
-          const when = [e.startedAt, e.endedAt].filter(Boolean).join(' 〜 ');
-          const venue = [e.place ?? '', e.address ?? ''].filter(Boolean).join(' ');
-          const participants = e.limit ? `${e.participantCount}/${e.limit}` : `${e.participantCount}`;
-
-          const description = e.description ? truncateForEmbed(htmlToDiscord(e.description), 4000) : undefined;
-
-          const embed: any = {
-            title: e.title,
-            url: e.url,
-            color: 0x00a3ff,
-            description: description,
-            fields: [
-              when ? { name: '開催日時', value: when, inline: false } : undefined,
-              venue ? { name: '会場', value: venue, inline: false } : undefined,
-              { name: '参加', value: participants, inline: true },
-              e.hashTag ? { name: 'ハッシュタグ', value: `#${e.hashTag}`, inline: true } : undefined,
-              e.groupTitle || e.groupUrl
-                ? { name: 'グループ', value: e.groupUrl ? `[${e.groupTitle ?? e.groupUrl}](${e.groupUrl})` : `${e.groupTitle}`, inline: false }
-                : undefined,
-              (e.ownerDisplayName || e.ownerNickname) ? { name: '主催', value: `${e.ownerDisplayName ?? e.ownerNickname}`, inline: true } : undefined,
-            ].filter(Boolean),
-            timestamp: e.updatedAt,
-            footer: { text: '最終更新' },
-          };
-
-          await thread.send({ embeds: [embed] });
-          await interaction.editReply('詳細をスレッドに投稿しました');
-          return;
-        }
-
-        if (action === 'pres') {
-          const pres: PresentationsResponse = await api.getEventPresentations(eventId);
-          if (!pres.presentationsReturned) {
-            await thread.send('登壇情報は見つかりませんでした');
-          } else {
-            const list = pres.presentations
-              .sort((a, b) => a.order - b.order)
-              .map((p) => {
-                const links = [p.url, p.slideshareUrl, p.youtubeUrl, p.twitterUrl].filter(Boolean) as string[];
-                const linkText = links.length ? ` - ${links[0]}` : '';
-                return `- ${p.title} / ${p.speakerName}${linkText}`;
-              })
-              .join('\n');
-            await thread.send(`登壇情報:\n${list}`);
-          }
-          await interaction.editReply('登壇情報をスレッドに投稿しました');
-          return;
-        }
 
         if (action === 'conflict') {
           await interaction.deferReply({ ephemeral: true });
@@ -197,6 +132,72 @@ async function main() {
             });
 
           await interaction.editReply([`重複している可能性のある参加予定が見つかりました (${overlaps.length}件):`, ...lines].join('\n'));
+          return;
+        }
+
+        // Find or create a thread from the parent message (only for detail/pres actions)
+        const parentMessage: any = interaction.message as any;
+        let thread = parentMessage.thread ?? null;
+        if (!thread) {
+          const name = `イベント詳細-${eventId}`;
+          thread = await parentMessage.startThread({ name, autoArchiveDuration: 1440 }).catch(() => null);
+        }
+
+        if (!thread) throw new Error('スレッドを作成できませんでした');
+
+        if (action === 'detail') {
+          await interaction.deferReply({ ephemeral: true });
+          const resp: EventsResponse = await api.searchEvents({ eventId: [eventId] });
+          const e = resp.events[0];
+          if (!e) throw new Error('イベントが見つかりません');
+
+          const when = [e.startedAt, e.endedAt].filter(Boolean).join(' 〜 ');
+          const venue = [e.place ?? '', e.address ?? ''].filter(Boolean).join(' ');
+          const participants = e.limit ? `${e.participantCount}/${e.limit}` : `${e.participantCount}`;
+
+          const description = e.description ? truncateForEmbed(htmlToDiscord(e.description), 4000) : undefined;
+
+          const embed: any = {
+            title: e.title,
+            url: e.url,
+            color: 0x00a3ff,
+            description: description,
+            fields: [
+              when ? { name: '開催日時', value: when, inline: false } : undefined,
+              venue ? { name: '会場', value: venue, inline: false } : undefined,
+              { name: '参加', value: participants, inline: true },
+              e.hashTag ? { name: 'ハッシュタグ', value: `#${e.hashTag}`, inline: true } : undefined,
+              e.groupTitle || e.groupUrl
+                ? { name: 'グループ', value: e.groupUrl ? `[${e.groupTitle ?? e.groupUrl}](${e.groupUrl})` : `${e.groupTitle}`, inline: false }
+                : undefined,
+              (e.ownerDisplayName || e.ownerNickname) ? { name: '主催', value: `${e.ownerDisplayName ?? e.ownerNickname}`, inline: true } : undefined,
+            ].filter(Boolean),
+            timestamp: e.updatedAt,
+            footer: { text: '最終更新' },
+          };
+
+          await thread.send({ embeds: [embed] });
+          await interaction.editReply('詳細をスレッドに投稿しました');
+          return;
+        }
+
+        if (action === 'pres') {
+          await interaction.deferReply({ ephemeral: true });
+          const pres: PresentationsResponse = await api.getEventPresentations(eventId);
+          if (!pres.presentationsReturned) {
+            await thread.send('登壇情報は見つかりませんでした');
+          } else {
+            const list = pres.presentations
+              .sort((a, b) => a.order - b.order)
+              .map((p) => {
+                const links = [p.url, p.slideshareUrl, p.youtubeUrl, p.twitterUrl].filter(Boolean) as string[];
+                const linkText = links.length ? ` - ${links[0]}` : '';
+                return `- ${p.title} / ${p.speakerName}${linkText}`;
+              })
+              .join('\n');
+            await thread.send(`登壇情報:\n${list}`);
+          }
+          await interaction.editReply('登壇情報をスレッドに投稿しました');
           return;
         }
 
