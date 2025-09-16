@@ -823,11 +823,12 @@ export async function handleCommand(
         return;
       }
 
-      // Use local date (not UTC) to avoid off-by-one around midnight
+      // Use Japan Standard Time (JST) for both search and display
       const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
+      const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // Convert to JST
+      const yyyy = jstNow.getUTCFullYear();
+      const mm = String(jstNow.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(jstNow.getUTCDate()).padStart(2, '0');
       const ymd = `${yyyy}${mm}${dd}`;
       const resp = await api.searchEvents({ nickname: user.connpassNickname, ymd: [ymd] });
 
@@ -841,7 +842,11 @@ export async function handleCommand(
         const d = new Date(s);
         return Number.isNaN(d.getTime()) ? undefined : d;
       };
-      const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      const hhmm = (d: Date) => {
+        // Convert to JST (UTC+9)
+        const jstTime = new Date(d.getTime() + (9 * 60 * 60 * 1000));
+        return `${String(jstTime.getUTCHours()).padStart(2, '0')}:${String(jstTime.getUTCMinutes()).padStart(2, '0')}`;
+      };
 
       const sorted = [...resp.events].sort((a, b) => {
         const sa = toDate(a.startedAt);

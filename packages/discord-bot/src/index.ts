@@ -3,6 +3,7 @@ import { ConnpassClient, type EventsResponse, type PresentationsResponse } from 
 import { createInProcessRunner, FileJobStore, FileUserStore, InMemoryUserStore, UserManager } from '@connpass-discord-bot/job';
 import { DiscordSink } from './sink';
 import { handleCommand } from './commands';
+import { htmlToDiscord, truncateForEmbed } from './htmlToDiscord';
 import { prefectures } from './prefectures';
 
 const token = process.env.DISCORD_BOT_TOKEN;
@@ -90,20 +91,29 @@ async function main() {
           const when = [e.startedAt, e.endedAt].filter(Boolean).join(' 〜 ');
           const venue = [e.place ?? '', e.address ?? ''].filter(Boolean).join(' ');
           const participants = e.limit ? `${e.participantCount}/${e.limit}` : `${e.participantCount}`;
-          const lines: string[] = [];
-          lines.push(`【${e.title}】`);
-          lines.push(e.url);
-          if (when) lines.push(`開催: ${when}`);
-          if (venue) lines.push(`会場: ${venue}`);
-          lines.push(`参加: ${participants}`);
-          if (e.hashTag) lines.push(`ハッシュタグ: #${e.hashTag}`);
-          if (e.groupTitle || e.groupUrl) lines.push(`グループ: ${e.groupUrl ? `[${e.groupTitle ?? e.groupUrl}](${e.groupUrl})` : e.groupTitle}`);
-          if (e.ownerDisplayName || e.ownerNickname) lines.push(`主催: ${e.ownerDisplayName ?? e.ownerNickname}`);
-          if (e.description) {
-            const desc = e.description.length > 1500 ? `${e.description.slice(0, 1500)}...` : e.description;
-            lines.push('', desc);
-          }
-          await thread.send(lines.join('\n'));
+
+          const description = e.description ? truncateForEmbed(htmlToDiscord(e.description), 4000) : undefined;
+
+          const embed: any = {
+            title: e.title,
+            url: e.url,
+            color: 0x00a3ff,
+            description: description,
+            fields: [
+              when ? { name: '開催日時', value: when, inline: false } : undefined,
+              venue ? { name: '会場', value: venue, inline: false } : undefined,
+              { name: '参加', value: participants, inline: true },
+              e.hashTag ? { name: 'ハッシュタグ', value: `#${e.hashTag}`, inline: true } : undefined,
+              e.groupTitle || e.groupUrl
+                ? { name: 'グループ', value: e.groupUrl ? `[${e.groupTitle ?? e.groupUrl}](${e.groupUrl})` : `${e.groupTitle}`, inline: false }
+                : undefined,
+              (e.ownerDisplayName || e.ownerNickname) ? { name: '主催', value: `${e.ownerDisplayName ?? e.ownerNickname}`, inline: true } : undefined,
+            ].filter(Boolean),
+            timestamp: e.updatedAt,
+            footer: { text: '最終更新' },
+          };
+
+          await thread.send({ embeds: [embed] });
           await interaction.editReply('詳細をスレッドに投稿しました');
           return;
         }
