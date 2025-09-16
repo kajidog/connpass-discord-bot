@@ -320,6 +320,7 @@ export async function handleCommand(
 
   if (group === 'feed' && sub === 'run') {
     try {
+      await interaction.deferReply({ ephemeral: true });
       const existing = await manager.get(jobId);
       const res = await manager.runOnce(jobId);
       const keywordsAnd = existing?.keyword ?? [];
@@ -332,7 +333,7 @@ export async function handleCommand(
       const order = existing?.order ?? 2;
       const orderLabel = order === 1 ? '更新日時の降順 (updated_desc)' : order === 2 ? '開催日時の昇順 (started_asc)' : '開催日時の降順 (started_desc)';
 
-      await interaction.reply({
+      await interaction.editReply({
         content:
           `手動実行しました(/connpass feed run) \n` +
           `- 検索一致: ${ res.events.length } 件（通知は新着のみ）\n` +
@@ -344,10 +345,13 @@ export async function handleCommand(
           `- owner_nickname: ${ ownerNickname ?? '(none)' } \n` +
           `- order: ${ orderLabel } \n` +
           `- prefecture: ${ prefecture.join(', ') || '(none)' } `,
-        ephemeral: true,
       });
     } catch (e: any) {
-      await interaction.reply({ content: `Error: ${ e?.message ?? e } `, ephemeral: true });
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({ content: `Error: ${ e?.message ?? e } ` });
+      } else {
+        await interaction.reply({ content: `Error: ${ e?.message ?? e } `, ephemeral: true });
+      }
     }
     return;
   }

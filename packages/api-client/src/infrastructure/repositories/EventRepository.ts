@@ -73,6 +73,7 @@ export class EventRepository implements IEventRepository {
       catchPhrase: e.catch ?? e.catchPhrase ?? '',
       description: e.description ?? '',
       url: e.url ?? e.event_url,
+      imageUrl: e.image_url ?? e.imageUrl ?? undefined,
       hashTag: e.hash_tag ?? e.hashTag ?? '',
       startedAt: e.started_at ?? e.startedAt ?? '',
       endedAt: e.ended_at ?? e.endedAt ?? '',
