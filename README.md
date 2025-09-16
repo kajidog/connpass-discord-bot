@@ -249,10 +249,6 @@ AI要約を使う場合は、別途 Mastra サーバを起動し `MASTRA_BASE_UR
 
 ジョブIDはチャンネルIDと同一で、通知先はそのチャンネルになります。
 
-メモ:
-- ユーザーのニックネーム登録は `JOB_STORE_DIR` 設定時にファイルへ永続化。未設定時はメモリ保持（再起動で消去）。
-- `/connpass user show` は API からユーザーID/プロフィールURLを引けた場合、あわせて表示します。
-
 ### メッセージボタン（イベント投稿）
 
 各イベントの埋め込み投稿には次のボタンが付きます:
@@ -317,11 +313,4 @@ AI要約を使う場合は、別途 Mastra サーバを起動し `MASTRA_BASE_UR
 
 ---
 
-## 開発メモ
-
-- **ビルド**: `pnpm -r build`
-- **型チェック**: `pnpm -r typecheck`
-- **テスト**: `pnpm test`
-- HTML → Discord テキスト変換の簡易プレビュー: `node scripts/preview-html.js <htmlを含むテキストファイル>`
-
-注: Mastra サービスのローカル起動は `pnpm --filter mastra dev`（OpenAI キーが必要）で可能です。
+ 
