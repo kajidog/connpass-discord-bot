@@ -138,6 +138,7 @@ async function main() {
         }
 
         if (action === 'conflict') {
+          await interaction.deferReply({ ephemeral: true });
           const user = await userManager.find(interaction.user.id);
           if (!user) {
             await interaction.editReply('まず `/connpass user register` であなたのconnpassニックネームを登録してください。');
@@ -165,6 +166,9 @@ async function main() {
             await interaction.editReply('イベントの開催日時が不明のため、重複チェックできませんでした。');
             return;
           }
+
+          // Add delay to avoid rate limiting between API calls
+          await new Promise(resolve => setTimeout(resolve, 1000));
 
           // Fetch user's events around the date range of the target event (inclusive)
           const ymdFrom = toJstYmd(s1);
