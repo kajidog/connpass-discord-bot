@@ -816,50 +816,54 @@ export async function handleCommand(
   }
 
   if (sub === 'today') {
-    const user = await userManager.find(interaction.user.id);
-    if (!user) {
-      await interaction.reply({ content: 'Your connpass nickname is not registered. Use `/ connpass user register` first.', ephemeral: true });
-      return;
+    try {
+      const user = await userManager.find(interaction.user.id);
+      if (!user) {
+        await interaction.reply({ content: 'Your connpass nickname is not registered. Use `/connpass user register` first.', ephemeral: true });
+        return;
+      }
+
+      // Use local date (not UTC) to avoid off-by-one around midnight
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const ymd = `${yyyy}${mm}${dd}`;
+      const resp = await api.searchEvents({ nickname: user.connpassNickname, ymd: [ymd] });
+
+      if (resp.events.length === 0) {
+        await interaction.reply({ content: 'No events found for you today.', ephemeral: true });
+        return;
+      }
+
+      const toDate = (s?: string) => {
+        if (!s) return undefined;
+        const d = new Date(s);
+        return Number.isNaN(d.getTime()) ? undefined : d;
+      };
+      const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+      const sorted = [...resp.events].sort((a, b) => {
+        const sa = toDate(a.startedAt);
+        const sb = toDate(b.startedAt);
+        if (sa && sb) return sa.getTime() - sb.getTime();
+        if (sa && !sb) return -1;
+        if (!sa && sb) return 1;
+        return a.title.localeCompare(b.title);
+      });
+
+      const lines = sorted.map((e) => {
+        const s = toDate(e.startedAt);
+        const t = toDate(e.endedAt);
+        const time = s ? (t ? `${hhmm(s)} - ${hhmm(t)}` : `${hhmm(s)}`) : '';
+        const head = time ? `${time} ` : '';
+        return `- ${head}${e.title} ${e.url}`;
+      });
+
+      await interaction.reply({ content: `Your schedule for today:\n${lines.join('\n')}`, ephemeral: true });
+    } catch (e: any) {
+      await interaction.reply({ content: `Error fetching today's events: ${e?.message ?? e}`, ephemeral: true });
     }
-
-    // Use local date (not UTC) to avoid off-by-one around midnight
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const ymd = `${ yyyy }${ mm }${ dd } `;
-    const resp = await api.searchEvents({ nickname: user.connpassNickname, ymd: [ymd] });
-
-    if (resp.events.length === 0) {
-      await interaction.reply({ content: 'No events found for you today.', ephemeral: true });
-      return;
-    }
-
-    const toDate = (s?: string) => {
-      if (!s) return undefined;
-      const d = new Date(s);
-      return Number.isNaN(d.getTime()) ? undefined : d;
-    };
-    const hhmm = (d: Date) => `${ String(d.getHours()).padStart(2, '0') }:${ String(d.getMinutes()).padStart(2, '0') } `;
-
-    const sorted = [...resp.events].sort((a, b) => {
-      const sa = toDate(a.startedAt);
-      const sb = toDate(b.startedAt);
-      if (sa && sb) return sa.getTime() - sb.getTime();
-      if (sa && !sb) return -1;
-      if (!sa && sb) return 1;
-      return a.title.localeCompare(b.title);
-    });
-
-    const lines = sorted.map((e) => {
-      const s = toDate(e.startedAt);
-      const t = toDate(e.endedAt);
-      const time = s ? t ? `${ hhmm(s) } -${ hhmm(t) } ` : `${ hhmm(s) } ` : '';
-      const head = time ? `${ time } ` : '';
-      return `- ${ head }${ e.title } ${ e.url } `;
-    });
-
-    await interaction.reply({ content: `Your schedule for today: \n${ lines.join('\n') } `, ephemeral: true });
     return;
   }
 }
