@@ -98,6 +98,10 @@ export class JobManager {
     return this.store.list();
   }
 
+  async save(job: Job): Promise<void> {
+    await this.store.save(job);
+  }
+
   // Execute a job once and push new events to sink
   async runOnce(jobId: string): Promise<EventsResponse> {
     const job = await this.store.get(jobId);

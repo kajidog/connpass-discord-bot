@@ -4,22 +4,26 @@ import { Job } from '../domain/types';
 import { IJobStore } from '../domain/repositories/IJobStore';
 
 interface PersistedJob extends Omit<Job, 'state'> {
-  schemaVersion: 1;
+  schemaVersion: 2; // バージョンを2に更新
   updatedAt: string;
   state: {
     lastRunAt?: number;
+    nextRunAt?: number; // 追加
     lastEventUpdatedAt?: string;
     seenEventIds: number[];
   };
 }
 
+import { JobState } from '../domain/types';
+
 function toPersisted(job: Job): PersistedJob {
   return {
     ...job,
-    schemaVersion: 1,
+    schemaVersion: 2, // 更新
     updatedAt: new Date().toISOString(),
     state: {
       lastRunAt: job.state.lastRunAt,
+      nextRunAt: job.state.nextRunAt, // 追加
       lastEventUpdatedAt: job.state.lastEventUpdatedAt,
       seenEventIds: Array.from(job.state.seenEventIds || []),
     },
@@ -27,13 +31,21 @@ function toPersisted(job: Job): PersistedJob {
 }
 
 function fromPersisted(p: PersistedJob): Job {
+  // 後方互換性: schemaVersion 1 のデータも読み込み可能
+  const state: JobState = {
+    lastRunAt: p.state.lastRunAt,
+    lastEventUpdatedAt: p.state.lastEventUpdatedAt,
+    seenEventIds: new Set(p.state.seenEventIds || []),
+  };
+
+  // schemaVersion 2 以上の場合のみ nextRunAt を設定
+  if (p.schemaVersion >= 2) {
+    state.nextRunAt = (p.state as any).nextRunAt;
+  }
+
   return {
     ...p,
-    state: {
-      lastRunAt: p.state.lastRunAt,
-      lastEventUpdatedAt: p.state.lastEventUpdatedAt,
-      seenEventIds: new Set(p.state.seenEventIds || []),
-    },
+    state,
   } as Job;
 }
 
