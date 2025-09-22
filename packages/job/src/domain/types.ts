@@ -44,6 +44,7 @@ export interface JobConfig {
 
 export interface JobState {
   lastRunAt?: number;
+  nextRunAt?: number; // 追加: 次回実行予定時刻（Unix timestamp）
   lastEventUpdatedAt?: string; // ISO string of last seen event.updatedAt
   seenEventIds: Set<number>;
 }

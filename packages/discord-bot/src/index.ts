@@ -23,11 +23,18 @@ if (!connpassApiKey) {
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const jobStoreDir = process.env.JOB_STORE_DIR; // optional: use file persistence when provided
 
+const scheduleMode = (process.env.SCHEDULE_MODE as 'interval' | 'scheduled') || 'scheduled';
+
 async function main() {
   const sink = new DiscordSink(client);
   const store = jobStoreDir ? new FileJobStore(jobStoreDir) : undefined;
   const userStore = jobStoreDir ? new FileUserStore(jobStoreDir) : new InMemoryUserStore();
-  const { manager, scheduler } = createInProcessRunner({ apiKey: connpassApiKey as string, sink, store });
+  const { manager, scheduler } = createInProcessRunner({
+    apiKey: connpassApiKey as string,
+    sink,
+    store,
+    schedulerOptions: { mode: scheduleMode }, // オプション追加
+  });
   const userManager = new UserManager(userStore);
   const api = new ConnpassClient({ apiKey: connpassApiKey as string });
 
