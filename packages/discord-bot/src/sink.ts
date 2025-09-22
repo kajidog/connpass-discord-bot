@@ -189,7 +189,7 @@ export class DiscordSink implements JobSink {
 
       // send sequentially to preserve order
       // eslint-disable-next-line no-await-in-loop
-      await channel.send({ embeds: [embed], components: rows, files });
+      await channel.send({ content: `**${e.title}**`, embeds: [embed], components: rows, files });
     }
   }
 
