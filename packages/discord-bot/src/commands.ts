@@ -207,57 +207,55 @@ export async function handleCommand(
 
   // Feed group: settings and operations for periodic feed
   if (group === 'feed' && sub === 'set') {
-    const intervalSec = interaction.options.getInteger('interval_sec') ?? 1800;
-    const keywordsAndRaw = interaction.options.getString('keywords_and') ?? '';
-    const keywordsOrRaw = interaction.options.getString('keywords_or') ?? '';
-    const rangeDays = interaction.options.getInteger('range_days') ?? 14;
-    const locationRaw = interaction.options.getString('location') ?? '';
+    const payload: any = { id: jobId, channelId: jobId };
+
+    const intervalSec = interaction.options.getInteger('interval_sec');
+    if (intervalSec !== null) payload.intervalSec = intervalSec;
+    const rangeDays = interaction.options.getInteger('range_days');
+    if (rangeDays !== null) payload.rangeDays = rangeDays;
+
+    const keywordsAndRaw = interaction.options.getString('keywords_and');
+    if (keywordsAndRaw !== null) {
+      payload.keyword = keywordsAndRaw.split(/[\,\s]+/).map((s) => s.trim()).filter(Boolean);
+    }
+    const keywordsOrRaw = interaction.options.getString('keywords_or');
+    if (keywordsOrRaw !== null) {
+      payload.keywordOr = keywordsOrRaw.split(/[\,\s]+/).map((s) => s.trim()).filter(Boolean);
+    }
+
+    const locationRaw = interaction.options.getString('location');
+    if (locationRaw !== null) {
+      const clearLocation = ['none', 'clear', 'なし', 'クリア', '未指定'].includes(locationRaw.toLowerCase());
+      if (clearLocation) {
+        payload.prefecture = [];
+      } else {
+        payload.prefecture = locationRaw.split(/[\,\s]+/).map((s) => s.trim()).filter(Boolean);
+      }
+    }
+
+    const hashTag = interaction.options.getString('hashtag');
+    if (hashTag !== null) payload.hashTag = hashTag.replace(/^#/, '').trim() || undefined;
+    const ownerNickname = interaction.options.getString('owner_nickname');
+    if (ownerNickname !== null) payload.ownerNickname = ownerNickname;
     const orderOpt = interaction.options.getString('order') as 'updated_desc' | 'started_asc' | 'started_desc' | null;
-    const order = orderOpt === 'updated_desc' ? 1 : orderOpt === 'started_asc' ? 2 : orderOpt === 'started_desc' ? 3 : undefined;
-    const prefectures = locationRaw
-      .split(/[,\s]+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const hashTagOpt = interaction.options.getString('hashtag') ?? undefined;
-    const hashTag = hashTagOpt ? hashTagOpt.replace(/^#/, '').trim() || undefined : undefined;
-    const ownerNickname = interaction.options.getString('owner_nickname') ?? undefined;
+    if (orderOpt !== null) {
+      payload.order = orderOpt === 'updated_desc' ? 1 : orderOpt === 'started_asc' ? 2 : 3;
+    }
 
-    const tokensAnd = keywordsAndRaw
-      .split(/[,\s]+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const tokensOr = keywordsOrRaw
-      .split(/[,\s]+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    const config = {
-      id: jobId,
-      channelId: jobId,
-      intervalSec,
-      keyword: tokensAnd.length ? tokensAnd : undefined,
-      keywordOr: tokensOr.length ? tokensOr : undefined,
-      rangeDays,
-      prefecture: prefectures.length > 0 ? prefectures : undefined,
-      hashTag,
-      ownerNickname,
-      order,
-    } as const;
-
-    await manager.upsert(config);
+    const job = await manager.upsert(payload);
     await scheduler.restart(jobId);
     await interaction.reply({
       content:
         `設定を更新しました (/connpass feed set)\n` +
-        `- keywords(and): ${tokensAnd.join(', ') || '(none)'}\n` +
-        `- keywords(or): ${tokensOr.join(', ') || '(none)'}\n` +
-        `- rangeDays: ${rangeDays}\n` +
-        `- intervalSec: ${intervalSec}\n` +
-        `- hashtag: ${hashTag ?? '(none)'}\n` +
-        `- prefecture: ${prefectures.join(', ') || '(none)'}\n` +
-        `- owner_nickname: ${ownerNickname ?? '(none)'}\n` +
-        (order != null
-          ? `- order: ${order === 1 ? '更新日時の降順 (updated_desc)' : order === 2 ? '開催日時の昇順 (started_asc)' : '開催日時の降順 (started_desc)'}\n`
+        `- keywords(and): ${(job.keyword ?? []).join(', ') || '(none)'}\n` +
+        `- keywords(or): ${(job.keywordOr ?? []).join(', ') || '(none)'}\n` +
+        `- rangeDays: ${job.rangeDays}\n` +
+        `- intervalSec: ${job.intervalSec}\n` +
+        `- hashtag: ${job.hashTag ?? '(none)'}\n` +
+        `- prefecture: ${(job.prefecture ?? []).join(', ') || '(none)'}\n` +
+        `- owner_nickname: ${job.ownerNickname ?? '(none)'}\n` +
+        (job.order != null
+          ? `- order: ${job.order === 1 ? '更新日時の降順 (updated_desc)' : job.order === 2 ? '開催日時の昇順 (started_asc)' : '開催日時の降順 (started_desc)'}\n`
           : ''),
       ephemeral: true,
     });
@@ -428,54 +426,46 @@ export async function handleCommand(
     };
 
     if (sub2 === 'set') {
+      const payload: any = { id: jobId, channelId: jobId };
+
       const aiEnabled = interaction.options.getBoolean('ai_enabled');
-      const summaryTemplate = interaction.options.getString('summary_template') ?? undefined;
+      if (aiEnabled !== null) payload.reportAiDefault = aiEnabled;
+      const summaryTemplate = interaction.options.getString('summary_template');
+      if (summaryTemplate !== null) payload.reportSummaryTemplate = summaryTemplate;
       const enabled = interaction.options.getBoolean('enabled');
-      const intervalSec = interaction.options.getInteger('interval_sec') ?? undefined;
-      const rangeDays = interaction.options.getInteger('range_days') ?? undefined;
+      if (enabled !== null) payload.reportEnabled = enabled;
+      const intervalSec = interaction.options.getInteger('interval_sec');
+      if (intervalSec !== null) payload.reportIntervalSec = intervalSec;
+      const rangeDays = interaction.options.getInteger('range_days');
+      if (rangeDays !== null) payload.reportRangeDays = rangeDays;
 
-      // report-specific filters
-      const keywordsAndRaw = interaction.options.getString('keywords_and') ?? '';
-      const keywordsOrRaw = interaction.options.getString('keywords_or') ?? '';
-      const locationRaw = interaction.options.getString('location') ?? '';
+      const keywordsAndRaw = interaction.options.getString('keywords_and');
+      if (keywordsAndRaw !== null) {
+        payload.reportKeyword = keywordsAndRaw.split(/[\,\s]+/).map((s) => s.trim()).filter(Boolean);
+      }
+      const keywordsOrRaw = interaction.options.getString('keywords_or');
+      if (keywordsOrRaw !== null) {
+        payload.reportKeywordOr = keywordsOrRaw.split(/[\,\s]+/).map((s) => s.trim()).filter(Boolean);
+      }
+      const locationRaw = interaction.options.getString('location');
+      if (locationRaw !== null) {
+        const clearLocation = ['none', 'clear', 'なし', 'クリア', '未指定'].includes(locationRaw.toLowerCase());
+        if (clearLocation) {
+          payload.reportPrefecture = [];
+        } else {
+          payload.reportPrefecture = locationRaw.split(/[\,\s]+/).map((s) => s.trim()).filter(Boolean);
+        }
+      }
+      const hashTag = interaction.options.getString('hashtag');
+      if (hashTag !== null) payload.reportHashTag = hashTag.replace(/^#/, '').trim() || undefined;
+      const ownerNickname = interaction.options.getString('owner_nickname');
+      if (ownerNickname !== null) payload.reportOwnerNickname = ownerNickname;
       const orderOpt = interaction.options.getString('order') as 'updated_desc' | 'started_asc' | 'started_desc' | null;
-      const order = orderOpt === 'updated_desc' ? 1 : orderOpt === 'started_asc' ? 2 : orderOpt === 'started_desc' ? 3 : undefined;
-      const prefectures = locationRaw
-        .split(/[\,\s]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const hashTagOpt = interaction.options.getString('hashtag') ?? undefined;
-      const hashTag = hashTagOpt ? hashTagOpt.replace(/^#/, '').trim() || undefined : undefined;
-      const ownerNickname = interaction.options.getString('owner_nickname') ?? undefined;
-      const tokensAnd = keywordsAndRaw
-        .split(/[\,\s]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const tokensOr = keywordsOrRaw
-        .split(/[\,\s]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
+      if (orderOpt !== null) {
+        payload.reportOrder = orderOpt === 'updated_desc' ? 1 : orderOpt === 'started_asc' ? 2 : 3;
+      }
 
-      const existing = await manager.get(jobId);
-      const job = await manager.upsert({
-        id: jobId,
-        channelId: jobId,
-        intervalSec: existing?.intervalSec ?? 1800,
-        reportAiDefault: aiEnabled ?? existing?.reportAiDefault,
-        reportSummaryTemplate: summaryTemplate ?? existing?.reportSummaryTemplate,
-        // below: scheduled report config (cast to any for forward-compat types)
-        ...( { reportEnabled: enabled ?? (existing as any)?.reportEnabled ?? false } as any ),
-        ...( { reportIntervalSec: intervalSec ?? (existing as any)?.reportIntervalSec ?? 24 * 60 * 60 } as any ),
-        ...( { reportRangeDays: rangeDays ?? (existing as any)?.reportRangeDays ?? 7 } as any ),
-        // report-specific filters
-        ...( tokensAnd.length ? ({ reportKeyword: tokensAnd } as any) : {} ),
-        ...( tokensOr.length ? ({ reportKeywordOr: tokensOr } as any) : {} ),
-        ...( prefectures.length ? ({ reportPrefecture: prefectures } as any) : {} ),
-        ...( hashTag !== undefined ? ({ reportHashTag: hashTag } as any) : {} ),
-        ...( ownerNickname ? ({ reportOwnerNickname: ownerNickname } as any) : {} ),
-        ...( order != null ? ({ reportOrder: order } as any) : {} ),
-      } as any);
-      // restart scheduler to apply on next interval (no immediate run)
+      const job = await manager.upsert(payload);
       await scheduler.restart(jobId);
       await interaction.reply({
         content:
@@ -533,7 +523,14 @@ export async function handleCommand(
       const rangeDays = interaction.options.getInteger('range_days') ?? ((existing as any)?.reportRangeDays ?? 7);
       const keywordsAndRaw = interaction.options.getString('keywords_and') ?? (((existing as any)?.reportKeyword ?? existing?.keyword ?? []) as string[]).join(', ');
       const keywordsOrRaw = interaction.options.getString('keywords_or') ?? (((existing as any)?.reportKeywordOr ?? existing?.keywordOr ?? []) as string[]).join(', ');
-      const locationRaw = interaction.options.getString('location') ?? (((existing as any)?.reportPrefecture ?? existing?.prefecture ?? []) as string[]).join(', ');
+      const locationOption = interaction.options.getString('location');
+      let locationRaw: string;
+      if (locationOption !== null) {
+        const clearLocation = ['none', 'clear', 'なし', 'クリア', '未指定'].includes(locationOption.toLowerCase());
+        locationRaw = clearLocation ? '' : locationOption;
+      } else {
+        locationRaw = (((existing as any)?.reportPrefecture ?? existing?.prefecture ?? []) as string[]).join(', ');
+      }
       const hashTagOpt = interaction.options.getString('hashtag') ?? ((existing as any)?.reportHashTag ?? existing?.hashTag ?? undefined);
       const ownerNickname = interaction.options.getString('owner_nickname') ?? ((existing as any)?.reportOwnerNickname ?? existing?.ownerNickname ?? undefined);
       const prefectures = locationRaw
