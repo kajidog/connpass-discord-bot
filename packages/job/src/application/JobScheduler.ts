@@ -8,7 +8,8 @@ export type JobSchedulerOptions = { mode?: ScheduleMode };
 
 export class JobScheduler {
   private timers = new Map<string, Timers>();
-  private nextExecutionCache = new Map<string, number>(); // メモリキャッシュ
+  private nextExecutionCache = new Map<string, number>(); // feed の次回実行時刻キャッシュ
+  private nextReportExecutionCache = new Map<string, number>(); // report の次回実行時刻キャッシュ
   private executionChecker?: NodeJS.Timeout;
   private readonly mode: ScheduleMode;
 
@@ -27,6 +28,7 @@ export class JobScheduler {
     const now = Date.now();
     const jobs = await this.manager.list();
     const executionQueue: string[] = [];
+    const reportQueue: string[] = [];
 
     for (const job of jobs) {
       // キャッシュから次回実行時刻を取得
@@ -35,6 +37,14 @@ export class JobScheduler {
       if (nextRun && nextRun <= now) {
         executionQueue.push(job.id);
       }
+
+      // レポートが有効なら、次回レポート実行時刻を確認
+      if (job.reportEnabled) {
+        const nextReport = this.nextReportExecutionCache.get(job.id) || job.state.nextReportRunAt;
+        if (nextReport && nextReport <= now) {
+          reportQueue.push(job.id);
+        }
+      }
     }
 
     // レート制限対策: 1.1秒間隔で順次実行
@@ -42,6 +52,13 @@ export class JobScheduler {
       setTimeout(() => {
         this.executeScheduledJob(executionQueue[i]);
       }, i * 1100);
+    }
+
+    // レポートも同様に順次実行（feed と間隔共有）
+    for (let i = 0; i < reportQueue.length; i++) {
+      setTimeout(() => {
+        this.executeScheduledReport(reportQueue[i]);
+      }, (i + executionQueue.length) * 1100);
     }
   }
 
@@ -62,6 +79,24 @@ export class JobScheduler {
       }
     } catch (error) {
       console.error(`Failed to execute job ${jobId}:`, error);
+    }
+  }
+
+  private async executeScheduledReport(jobId: string): Promise<void> {
+    try {
+      await this.manager.postReport(jobId);
+
+      const job = await this.manager.get(jobId);
+      if (job && job.reportEnabled) {
+        const reportIntervalMs = Math.max(60, job.reportIntervalSec ?? 24 * 60 * 60) * 1000;
+        const nextRunAt = Date.now() + reportIntervalMs;
+        job.state.lastReportRunAt = Date.now();
+        job.state.nextReportRunAt = nextRunAt;
+        this.nextReportExecutionCache.set(jobId, nextRunAt);
+        await this.manager.save(job);
+      }
+    } catch (error) {
+      console.error(`Failed to execute report for job ${jobId}:`, error);
     }
   }
 
@@ -114,6 +149,17 @@ export class JobScheduler {
       // キャッシュに登録
       this.nextExecutionCache.set(jobId, job.state.nextRunAt);
     }
+
+    // レポート（有効時）
+    if (job.reportEnabled) {
+      if (!job.state.nextReportRunAt || job.state.nextReportRunAt <= now) {
+        setTimeout(() => {
+          this.executeScheduledReport(jobId);
+        }, 200 + Math.random() * 1000);
+      } else {
+        this.nextReportExecutionCache.set(job.id, job.state.nextReportRunAt);
+      }
+    }
   }
 
   async stop(jobId: string): Promise<void> {
@@ -126,6 +172,25 @@ export class JobScheduler {
   }
 
   async restart(jobId: string): Promise<void> {
+    // In scheduled mode, do not execute immediately upon restart.
+    // Instead, schedule the next run(s) for the next interval tick.
+    if (this.mode === 'scheduled') {
+      const job = await this.manager.get(jobId);
+      if (!job) throw new Error(`Job not found: ${jobId}`);
+      const nextRunAt = Date.now() + (job.intervalSec ?? 1800) * 1000;
+      job.state.nextRunAt = nextRunAt;
+      this.nextExecutionCache.set(jobId, nextRunAt);
+
+      if (job.reportEnabled) {
+        const reportIntervalMs = Math.max(60, job.reportIntervalSec ?? 24 * 60 * 60) * 1000;
+        const nextReport = Date.now() + reportIntervalMs;
+        job.state.nextReportRunAt = nextReport;
+        this.nextReportExecutionCache.set(jobId, nextReport);
+      }
+
+      await this.manager.save(job);
+      return;
+    }
     await this.start(jobId);
   }
 
@@ -133,6 +198,7 @@ export class JobScheduler {
     const jobs = await this.manager.list();
     const now = Date.now();
     const immediateJobs: string[] = [];
+    const immediateReports: string[] = [];
 
     for (const job of jobs) {
       if (this.mode === 'scheduled') {
@@ -140,6 +206,13 @@ export class JobScheduler {
           immediateJobs.push(job.id);
         } else {
           this.nextExecutionCache.set(job.id, job.state.nextRunAt);
+        }
+        if (job.reportEnabled) {
+          if (!job.state.nextReportRunAt || job.state.nextReportRunAt <= now) {
+            immediateReports.push(job.id);
+          } else {
+            this.nextReportExecutionCache.set(job.id, job.state.nextReportRunAt);
+          }
         }
       } else {
         await this.start(job.id);
@@ -152,6 +225,11 @@ export class JobScheduler {
         setTimeout(() => {
           this.executeScheduledJob(immediateJobs[i]);
         }, i * 1100); // 1.1秒間隔
+      }
+      for (let i = 0; i < immediateReports.length; i++) {
+        setTimeout(() => {
+          this.executeScheduledReport(immediateReports[i]);
+        }, (i + immediateJobs.length) * 1100);
       }
     }
   }
