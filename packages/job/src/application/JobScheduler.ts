@@ -4,13 +4,15 @@ import { JobManager } from './JobManager';
 type Timers = { feed?: NodeJS.Timeout; report?: NodeJS.Timeout };
 type ScheduleMode = 'interval' | 'scheduled'; // 実行モード
 
+export type JobSchedulerOptions = { mode?: ScheduleMode };
+
 export class JobScheduler {
   private timers = new Map<string, Timers>();
   private nextExecutionCache = new Map<string, number>(); // メモリキャッシュ
   private executionChecker?: NodeJS.Timeout;
   private readonly mode: ScheduleMode;
 
-  constructor(private readonly manager: JobManager, options?: { mode?: ScheduleMode }) {
+  constructor(private readonly manager: JobManager, options?: JobSchedulerOptions) {
     this.mode = options?.mode || 'scheduled'; // デフォルトは新方式
 
     if (this.mode === 'scheduled') {

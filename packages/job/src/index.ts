@@ -1,6 +1,7 @@
 import { ConnpassClient } from '@connpass-discord-bot/api-client';
 import { JobManager } from './application/JobManager';
 import { JobScheduler } from './application/JobScheduler';
+import type { JobSchedulerOptions } from './application/JobScheduler';
 import { UserManager } from './application/UserManager';
 import { InMemoryJobStore } from './infrastructure/InMemoryJobStore';
 import { InMemoryUserStore } from './infrastructure/InMemoryUserStore';
@@ -32,6 +33,8 @@ export {
   type UserStore,
 };
 
+export type { JobSchedulerOptions } from './application/JobScheduler';
+
 // A basic sink that logs to console; consumers (e.g., Discord bot) should implement their own sink.
 export class ConsoleSink implements JobSink {
   handleNewEvents(payload: NewEventsPayload): void {
@@ -50,12 +53,13 @@ export function createInProcessRunner(opts: {
   apiKey: string;
   sink?: JobSink;
   store?: JobStore;
+  schedulerOptions?: JobSchedulerOptions;
 }) {
   const client = new ConnpassClient({ apiKey: opts.apiKey });
   const store = opts.store ?? new InMemoryJobStore();
   const sink = opts.sink ?? new ConsoleSink();
   const manager = new JobManager(client, store, sink);
-  const scheduler = new JobScheduler(manager);
+  const scheduler = new JobScheduler(manager, opts.schedulerOptions);
   return { client, manager, scheduler };
 }
 
