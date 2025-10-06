@@ -10,6 +10,12 @@ import {
   parseDateInput,
   toYmdArray,
 } from "./shared.js";
+import {
+  formatEventList,
+  formatEventsResponse,
+  formatPresentationsResponse,
+  FormatEventOptions,
+} from "./formatting.js";
 import { getDefaultIncludePresentations, getDefaultUserId } from "../config.js";
 import type { Event, PresentationsResponse } from "@connpass-discord-bot/api-client";
 
@@ -153,6 +159,8 @@ function formatDateLabel(date: Date): string {
 }
 
 type EventWithPresentations = Event & { presentations?: PresentationsResponse["presentations"] };
+
+const DEFAULT_EVENT_FORMAT_OPTIONS: FormatEventOptions = {};
 
 async function maybeAttachPresentations(
   events: Event[],
@@ -353,16 +361,19 @@ const eventHandlers = {
   async search_events(args: unknown, connpassClient: ConnpassClient) {
     const params = EventSearchInputSchema.parse(args ?? {});
     const searchParams = buildEventSearchParams(params);
-    return connpassClient.searchEvents(searchParams);
+    const response = await connpassClient.searchEvents(searchParams);
+    return formatEventsResponse(response, DEFAULT_EVENT_FORMAT_OPTIONS);
   },
   async get_all_events(args: unknown, connpassClient: ConnpassClient) {
     const params = EventSearchInputSchema.parse(args ?? {});
     const searchParams = buildEventSearchParams(params, { includePagination: false });
-    return connpassClient.getAllEvents(searchParams);
+    const response = await connpassClient.getAllEvents(searchParams);
+    return formatEventsResponse(response, DEFAULT_EVENT_FORMAT_OPTIONS);
   },
   async get_event_presentations(args: unknown, connpassClient: ConnpassClient) {
     const { eventId } = EventPresentationsInputSchema.parse(args ?? {});
-    return connpassClient.getEventPresentations(eventId);
+    const response = await connpassClient.getEventPresentations(eventId);
+    return formatPresentationsResponse(response, DEFAULT_EVENT_FORMAT_OPTIONS);
   },
   async get_my_upcoming_events(args: unknown, connpassClient: ConnpassClient) {
     const parsed = MyUpcomingEventsInputSchema.parse(args ?? {});
@@ -407,11 +418,11 @@ const eventHandlers = {
       userId: resolvedUserId,
       today: {
         date: formatDateLabel(today),
-        events: enrichedToday,
+        events: formatEventList(enrichedToday),
       },
       upcoming: {
         rangeEnd: formatDateLabel(rangeEnd),
-        events: enrichedUpcoming,
+        events: formatEventList(enrichedUpcoming),
       },
       metadata: {
         inspected: attended.eventsReturned,
