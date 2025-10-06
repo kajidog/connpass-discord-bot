@@ -44,9 +44,12 @@ export interface JobConfig {
 
 export interface JobState {
   lastRunAt?: number;
-  nextRunAt?: number; // 追加: 次回実行予定時刻（Unix timestamp）
+  nextRunAt?: number; // 追加: 次回実行予定時刻（Unix timestamp, feed 用）
   lastEventUpdatedAt?: string; // ISO string of last seen event.updatedAt
   seenEventIds: Set<number>;
+  // --- report scheduling state ---
+  lastReportRunAt?: number;
+  nextReportRunAt?: number; // 次回レポート実行予定時刻（Unix timestamp）
 }
 
 export interface Job extends JobConfig {
