@@ -30,5 +30,5 @@
 - Pull requests should describe motivation, implementation summary, and testing evidence (`pnpm typecheck`, manual verification). Link related issues and attach screenshots/log excerpts for user-facing changes.
 
 ## Security & Configuration Tips
-- Store credentials (Connpass API key, default user ID) in environment variables (`.env.local` ignored by git).
+- Store credentials (Connpass API key, default user ID) in environment variables (`.env.local` ignored by git). Cache behaviour can be tuned via `CONNPASS_PRESENTATION_CACHE_*` variables.
 - Respect the Connpass API rate limit (approx. 1 req/sec); batching helper functions already throttle via `HttpClient`.

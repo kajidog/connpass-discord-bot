@@ -33,6 +33,9 @@ Connpass MCP Server は、MCP (Model Context Protocol) 経由で Connpass API �
 | `CONNPASS_API_KEY` | Connpass API Key。未設定の場合は `dummy-key` が使われます（本番利用不可）。 | `dummy-key` |
 | `CONNPASS_DEFAULT_USER_ID` | `get_my_upcoming_events` で `userId` を省略したときに使うユーザー ID。 | 未設定 |
 | `CONNPASS_INCLUDE_PRESENTATIONS_DEFAULT` | `get_my_upcoming_events` の `includePresentations` の既定値。`true/false` や `1/0` などで指定。 | 未設定（false と同等） |
+| `CONNPASS_PRESENTATION_CACHE_ENABLED` | プレゼンテーション取得結果をディスクキャッシュするかどうか。 | `true` |
+| `CONNPASS_PRESENTATION_CACHE_TTL_MS` | キャッシュ保持期間（ミリ秒）。 | `3600000` |
+| `CONNPASS_PRESENTATION_CACHE_PATH` | キャッシュファイルの保存先パス。 | `./data/presentation-cache.json` |
 
 ## ツール一覧
 
