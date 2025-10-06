@@ -50,18 +50,30 @@ const RELATIVE_DATE_KEYWORDS: Record<string, () => Date> = {
   },
 };
 
-function formatAsYmd(date: Date): string {
+function formatAsCompactYmd(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}${month}${day}`;
 }
 
-export function parseDateInput(input: string): string {
+function formatAsHyphenatedYmd(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function parseDateInput(
+  input: string,
+  options?: { style?: "compact" | "hyphenated" }
+): string {
   const normalized = input.trim().toLowerCase();
   const relativeFactory = RELATIVE_DATE_KEYWORDS[normalized];
   if (relativeFactory) {
-    return formatAsYmd(relativeFactory());
+    return options?.style === "hyphenated"
+      ? formatAsHyphenatedYmd(relativeFactory())
+      : formatAsCompactYmd(relativeFactory());
   }
 
   const hyphenFree = normalized.replace(/[-/.]/g, "");
@@ -71,13 +83,17 @@ export function parseDateInput(input: string): string {
     const day = Number(hyphenFree.slice(6, 8));
     const candidate = new Date(Date.UTC(year, month, day));
     if (!Number.isNaN(candidate.getTime())) {
-      return formatAsYmd(candidate);
+      return options?.style === "hyphenated"
+        ? formatAsHyphenatedYmd(candidate)
+        : formatAsCompactYmd(candidate);
     }
   }
 
   const parsed = new Date(input);
   if (!Number.isNaN(parsed.getTime())) {
-    return formatAsYmd(parsed);
+    return options?.style === "hyphenated"
+      ? formatAsHyphenatedYmd(parsed)
+      : formatAsCompactYmd(parsed);
   }
 
   throw new Error(`Could not understand date input: ${input}`);
@@ -89,6 +105,23 @@ export function toYmdArray(value?: string | string[]): string[] | undefined {
   }
   const inputs = Array.isArray(value) ? value : [value];
   return inputs.map((item) => parseDateInput(item));
+}
+
+export function parseHyphenatedDate(input: string): string {
+  const parsed = parseDateInput(input, { style: "hyphenated" });
+  if (/^\d{4}-\d{2}-\d{2}$/.test(parsed)) {
+    return parsed;
+  }
+
+  const digitsOnly = parsed.replace(/[^0-9]/g, "");
+  if (digitsOnly.length === 8) {
+    const year = digitsOnly.slice(0, 4);
+    const month = digitsOnly.slice(4, 6);
+    const day = digitsOnly.slice(6, 8);
+    return `${year}-${month}-${day}`;
+  }
+
+  throw new Error(`Could not convert date input to YYYY-MM-DD: ${input}`);
 }
 
 export function normalizeStringArray(value?: string | string[]): string[] | undefined {

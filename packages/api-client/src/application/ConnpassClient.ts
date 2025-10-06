@@ -83,16 +83,25 @@ export class ConnpassClient {
     return this.userService.getAllUsers(params);
   }
 
-  async getUserGroups(userId: number, params?: { count?: number; start?: number }): Promise<GroupsResponse> {
-    return this.userService.getUserGroups(userId, params);
+  async getUserGroups(
+    userIdOrNickname: number | string,
+    params?: { count?: number; start?: number }
+  ): Promise<GroupsResponse> {
+    return this.userService.getUserGroups(userIdOrNickname, params);
   }
 
-  async getUserAttendedEvents(userId: number, params?: { count?: number; order?: 1 | 2 | 3; start?: number }): Promise<EventsResponse> {
-    return this.userService.getUserAttendedEvents(userId, params);
+  async getUserAttendedEvents(
+    userIdOrNickname: number | string,
+    params?: { count?: number; order?: 1 | 2 | 3; start?: number }
+  ): Promise<EventsResponse> {
+    return this.userService.getUserAttendedEvents(userIdOrNickname, params);
   }
 
-  async getUserPresenterEvents(userId: number, params?: { count?: number; order?: 1 | 2 | 3; start?: number }): Promise<EventsResponse> {
-    return this.userService.getUserPresenterEvents(userId, params);
+  async getUserPresenterEvents(
+    userIdOrNickname: number | string,
+    params?: { count?: number; order?: 1 | 2 | 3; start?: number }
+  ): Promise<EventsResponse> {
+    return this.userService.getUserPresenterEvents(userIdOrNickname, params);
   }
 
   private resolveCacheEnabled(explicit?: boolean): boolean {

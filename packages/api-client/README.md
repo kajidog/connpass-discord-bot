@@ -99,6 +99,7 @@ const userGroups = await client.getUserGroups(12345);
 
 // Get user's attended events
 const attendedEvents = await client.getUserAttendedEvents(12345);
+const sameResult = await client.getUserAttendedEvents('kajidog');
 
 // Get user's presenter events
 const presenterEvents = await client.getUserPresenterEvents(12345);

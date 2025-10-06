@@ -8,6 +8,7 @@ import {
   EVENT_SORT_MAP,
   normalizeStringArray,
   parseDateInput,
+  parseHyphenatedDate,
   toYmdArray,
 } from "./shared.js";
 import {
@@ -132,8 +133,8 @@ function buildEventSearchParams(
     keyword: input.query,
     keywordOr: input.anyQuery,
     ymd: toYmdArray(input.on),
-    ymdFrom: input.from ? parseDateInput(input.from) : undefined,
-    ymdTo: input.to ? parseDateInput(input.to) : undefined,
+    ymdFrom: input.from ? parseHyphenatedDate(input.from) : undefined,
+    ymdTo: input.to ? parseHyphenatedDate(input.to) : undefined,
     nickname: input.participantNickname,
     ownerNickname: input.hostNickname,
     groupId: input.groupIds,
@@ -160,7 +161,10 @@ function formatDateLabel(date: Date): string {
 
 type EventWithPresentations = Event & { presentations?: PresentationsResponse["presentations"] };
 
-const DEFAULT_EVENT_FORMAT_OPTIONS: FormatEventOptions = {};
+const DEFAULT_EVENT_FORMAT_OPTIONS: FormatEventOptions = {
+  descriptionLimit: 300,
+  catchPhraseLimit: 150,
+};
 
 async function maybeAttachPresentations(
   events: Event[],
