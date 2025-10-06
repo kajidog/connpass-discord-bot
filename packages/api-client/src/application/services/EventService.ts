@@ -28,12 +28,12 @@ export class EventService {
 
     while (true) {
       const response = await this.searchEvents({ ...params, start, count });
-      
+
       if (allEvents.eventsAvailable === 0) {
         allEvents.eventsAvailable = response.eventsAvailable;
         allEvents.eventsStart = response.eventsStart;
       }
-      
+
       allEvents.events.push(...response.events);
       allEvents.eventsReturned += response.eventsReturned;
 
@@ -42,6 +42,9 @@ export class EventService {
       }
 
       start += count;
+
+      // Wait 1 second to respect API rate limit (1 request per second)
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     return allEvents;

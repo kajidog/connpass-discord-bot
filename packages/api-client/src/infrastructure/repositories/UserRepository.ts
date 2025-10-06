@@ -13,35 +13,53 @@ export class UserRepository implements IUserRepository {
     return response.data;
   }
 
-  async getUserGroups(userId: number, params?: { count?: number; start?: number }): Promise<GroupsResponse> {
-    Validators.validatePositiveInteger(userId, 'userId');
+  async getUserGroups(nickname: string, params?: { count?: number; start?: number }): Promise<GroupsResponse> {
+    Validators.validateNickname(nickname, 'nickname');
     const queryParams: Record<string, any> = {};
     if (params?.count) queryParams.count = params.count;
     if (params?.start) queryParams.start = params.start;
 
-    const response = await this.httpClient.get<GroupsResponse>(`/users/${userId}/groups/`, queryParams);
+    const encodedNickname = encodeURIComponent(nickname.trim());
+    const response = await this.httpClient.get<GroupsResponse>(
+      `/users/${encodedNickname}/groups/`,
+      queryParams
+    );
     return response.data;
   }
 
-  async getUserAttendedEvents(userId: number, params?: { count?: number; order?: 1 | 2 | 3; start?: number }): Promise<EventsResponse> {
-    Validators.validatePositiveInteger(userId, 'userId');
+  async getUserAttendedEvents(
+    nickname: string,
+    params?: { count?: number; order?: 1 | 2 | 3; start?: number }
+  ): Promise<EventsResponse> {
+    Validators.validateNickname(nickname, 'nickname');
     const queryParams: Record<string, any> = {};
     if (params?.count) queryParams.count = params.count;
     if (params?.order) queryParams.order = params.order;
     if (params?.start) queryParams.start = params.start;
 
-    const response = await this.httpClient.get<EventsResponse>(`/users/${userId}/attended_events/`, queryParams);
+    const encodedNickname = encodeURIComponent(nickname.trim());
+    const response = await this.httpClient.get<EventsResponse>(
+      `/users/${encodedNickname}/attended_events/`,
+      queryParams
+    );
     return response.data;
   }
 
-  async getUserPresenterEvents(userId: number, params?: { count?: number; order?: 1 | 2 | 3; start?: number }): Promise<EventsResponse> {
-    Validators.validatePositiveInteger(userId, 'userId');
+  async getUserPresenterEvents(
+    nickname: string,
+    params?: { count?: number; order?: 1 | 2 | 3; start?: number }
+  ): Promise<EventsResponse> {
+    Validators.validateNickname(nickname, 'nickname');
     const queryParams: Record<string, any> = {};
     if (params?.count) queryParams.count = params.count;
     if (params?.order) queryParams.order = params.order;
     if (params?.start) queryParams.start = params.start;
 
-    const response = await this.httpClient.get<EventsResponse>(`/users/${userId}/presenter_events/`, queryParams);
+    const encodedNickname = encodeURIComponent(nickname.trim());
+    const response = await this.httpClient.get<EventsResponse>(
+      `/users/${encodedNickname}/presenter_events/`,
+      queryParams
+    );
     return response.data;
   }
 

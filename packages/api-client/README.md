@@ -35,9 +35,18 @@ const client = new ConnpassClient({
   apiKey: 'your-api-key-here',
   baseURL: 'https://connpass.com/api/v2', // optional, default value
   timeout: 30000, // optional, default 30 seconds
-  rateLimitDelay: 1000 // optional, default 1 second between requests
+  rateLimitDelay: 1000, // optional, default 1 second between requests
+  enablePresentationCache: true, // optional, default true
+  presentationCacheTtlMs: 1000 * 60 * 60, // optional, default 1 hour
+  presentationCachePath: './data/presentation-cache.json' // optional, default cwd/data
 });
 ```
+
+If these options are omitted, the client falls back to environment variables:
+
+- `CONNPASS_PRESENTATION_CACHE_ENABLED` (`true`/`false`, defaults to `true`)
+- `CONNPASS_PRESENTATION_CACHE_TTL_MS` (millisecond TTL, defaults to `3600000`)
+- `CONNPASS_PRESENTATION_CACHE_PATH` (path to persistent cache file, defaults to `./data/presentation-cache.json`)
 
 ### Available Methods
 
@@ -90,6 +99,7 @@ const userGroups = await client.getUserGroups(12345);
 
 // Get user's attended events
 const attendedEvents = await client.getUserAttendedEvents(12345);
+const sameResult = await client.getUserAttendedEvents('kajidog');
 
 // Get user's presenter events
 const presenterEvents = await client.getUserPresenterEvents(12345);

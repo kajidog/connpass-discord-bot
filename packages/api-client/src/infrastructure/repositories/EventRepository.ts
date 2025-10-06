@@ -2,9 +2,10 @@ import { IEventRepository } from '../../domain/repositories';
 import { Event, EventSearchParams, EventsResponse, PresentationsResponse } from '../../domain/entities';
 import { HttpClient } from '../http/HttpClient';
 import { Validators } from '../../domain/utils/validators';
+import { PresentationCache } from '../cache/PresentationCache';
 
 export class EventRepository implements IEventRepository {
-  constructor(private httpClient: HttpClient) {}
+  constructor(private httpClient: HttpClient, private presentationCache?: PresentationCache) {}
 
   async searchEvents(params: EventSearchParams): Promise<EventsResponse> {
     Validators.validateEventSearchParams(params);
@@ -15,8 +16,15 @@ export class EventRepository implements IEventRepository {
 
   async getEventPresentations(eventId: number): Promise<PresentationsResponse> {
     Validators.validatePositiveInteger(eventId, 'eventId');
+    const cached = await this.presentationCache?.get(eventId);
+    if (cached) {
+      return cached;
+    }
+
     const response = await this.httpClient.get<PresentationsResponse>(`/events/${eventId}/presentations/`);
-    return response.data;
+    const data = response.data;
+    await this.presentationCache?.set(eventId, data);
+    return data;
   }
 
   private buildEventQueryParams(params: EventSearchParams): Record<string, any> {

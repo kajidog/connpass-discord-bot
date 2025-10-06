@@ -81,4 +81,10 @@ export class Validators {
       throw new ConnpassValidationError(`${fieldName} must be a positive integer`);
     }
   }
+
+  static validateNickname(value: string, fieldName: string = 'nickname'): void {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      throw new ConnpassValidationError(`${fieldName} must be a non-empty string`);
+    }
+  }
 }

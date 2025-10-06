@@ -7,7 +7,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { ConnpassClient } from "@connpass-discord-bot/api-client";
-import { tools, handleToolCall } from "./tools.js";
+import { tools, handleToolCall } from "./tools/index.js";
 
 const server = new Server(
   {

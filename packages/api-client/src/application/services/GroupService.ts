@@ -21,12 +21,12 @@ export class GroupService {
 
     while (true) {
       const response = await this.searchGroups({ ...params, start, count });
-      
+
       if (allGroups.groupsAvailable === 0) {
         allGroups.groupsAvailable = response.groupsAvailable;
         allGroups.groupsStart = response.groupsStart;
       }
-      
+
       allGroups.groups.push(...response.groups);
       allGroups.groupsReturned += response.groupsReturned;
 
@@ -35,6 +35,9 @@ export class GroupService {
       }
 
       start += count;
+
+      // Wait 1 second to respect API rate limit (1 request per second)
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     return allGroups;
