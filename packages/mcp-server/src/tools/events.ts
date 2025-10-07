@@ -398,20 +398,26 @@ const eventHandlers = {
     rangeEnd.setDate(rangeEnd.getDate() + daysAhead);
     rangeEnd.setHours(23, 59, 59, 999);
 
-    const attended = await connpassClient.getUserAttendedEvents(resolvedUserId, {
+    const userResponse = await connpassClient.searchUsers({ userId: [resolvedUserId] });
+    const user = userResponse.users.find((u) => u.id === resolvedUserId);
+    if (!user) {
+      throw new Error(`User with ID ${resolvedUserId} not found.`);
+    }
+
+    const searchResponse = await connpassClient.searchEvents({
+      nickname: user.nickname,
+      ymdFrom: formatDateLabel(today),
+      ymdTo: formatDateLabel(rangeEnd),
+      order: EVENT_SORT_MAP["start-date-asc"],
       count: maxEventsToFetch,
-      order: 2,
     });
 
-    const filtered = attended.events
-      .filter((event) => {
-        const start = new Date(event.startedAt);
-        return start >= today && start <= rangeEnd;
-      })
-      .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
-
-    const todayEvents = filtered.filter((event) => isSameDay(new Date(event.startedAt), today));
-    const upcomingEvents = filtered.filter((event) => !isSameDay(new Date(event.startedAt), today));
+    const todayEvents = searchResponse.events.filter((event) =>
+      isSameDay(new Date(event.startedAt), today)
+    );
+    const upcomingEvents = searchResponse.events.filter(
+      (event) => !isSameDay(new Date(event.startedAt), today)
+    );
 
     const [enrichedToday, enrichedUpcoming] = await Promise.all([
       maybeAttachPresentations(todayEvents, includePresentations, connpassClient),
@@ -429,7 +435,7 @@ const eventHandlers = {
         events: formatEventList(enrichedUpcoming),
       },
       metadata: {
-        inspected: attended.eventsReturned,
+        inspected: searchResponse.eventsReturned,
         limit: maxEventsToFetch,
         daysAhead,
         includePresentations: Boolean(includePresentations),
