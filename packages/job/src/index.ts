@@ -1,4 +1,4 @@
-import { ConnpassClient } from '@connpass-discord-bot/api-client';
+import { ConnpassClient } from '@kajidog/connpass-api-client';
 import { JobManager } from './application/JobManager';
 import { JobScheduler } from './application/JobScheduler';
 import type { JobSchedulerOptions } from './application/JobScheduler';

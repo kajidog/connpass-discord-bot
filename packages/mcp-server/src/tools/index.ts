@@ -1,4 +1,4 @@
-import { ConnpassClient } from "@connpass-discord-bot/api-client";
+import { ConnpassClient } from "@kajidog/connpass-api-client";
 
 import { eventTools, handleEventTool, isEventTool } from "./events.js";
 import { groupTools, handleGroupTool, isGroupTool } from "./groups.js";

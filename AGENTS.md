@@ -8,10 +8,10 @@
 
 ## Build, Test, and Development Commands
 - `pnpm install`: install all workspace dependencies.
-- `pnpm --filter @connpass-discord-bot/mcp-server build`: compile the MCP server to `dist/`.
-- `pnpm --filter @connpass-discord-bot/mcp-server dev`: type-check in watch mode for rapid iterations.
-- `pnpm --filter @connpass-discord-bot/mcp-server typecheck`: run TypeScript checks without emitting output.
-- Use analogous `--filter` flags for other packages (e.g., `@connpass-discord-bot/api-client`).
+- `pnpm --filter @kajidog/connpass-mcp-server build`: compile the MCP server to `dist/`.
+- `pnpm --filter @kajidog/connpass-mcp-server dev`: type-check in watch mode for rapid iterations.
+- `pnpm --filter @kajidog/connpass-mcp-server typecheck`: run TypeScript checks without emitting output.
+- Use analogous `--filter` flags for other packages (e.g., `@kajidog/connpass-api-client`).
 
 ## Coding Style & Naming Conventions
 - TypeScript throughout; prefer ES modules with explicit `.js` extensions in compiled imports.

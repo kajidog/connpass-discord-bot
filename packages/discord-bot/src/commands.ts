@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, CacheType } from 'discord.js';
 import { JobManager, JobScheduler, UserManager } from '@connpass-discord-bot/job';
-import { ConnpassClient } from '@connpass-discord-bot/api-client';
+import { ConnpassClient } from '@kajidog/connpass-api-client';
 
 export const commandData = new SlashCommandBuilder()
   .setName('connpass')

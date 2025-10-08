@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { InMemoryJobStore } from '../src/infrastructure/InMemoryJobStore';
 import { JobManager } from '../src/application/JobManager';
 import { JobScheduler } from '../src/application/JobScheduler';
-import type { ConnpassClient } from '@connpass-discord-bot/api-client';
+import type { ConnpassClient } from '@kajidog/connpass-api-client';
 import { Job } from '../src/domain/types';
 
 describe('JobScheduler', () => {
