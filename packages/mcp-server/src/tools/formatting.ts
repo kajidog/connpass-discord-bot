@@ -3,7 +3,7 @@ import type {
   EventsResponse,
   Presentation,
   PresentationsResponse,
-} from "@connpass-discord-bot/api-client";
+} from "@kajidog/connpass-api-client";
 
 const HTML_ENTITY_MAP: Record<string, string> = {
   "&nbsp;": " ",

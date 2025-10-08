@@ -13,13 +13,13 @@ Connpass MCP Server は、MCP (Model Context Protocol) 経由で Connpass API �
 2. ビルドして利用可能な状態にします。
 
    ```bash
-   pnpm --filter @connpass-discord-bot/mcp-server build
+   pnpm --filter @kajidog/connpass-mcp-server build
    ```
 
 3. Connpass API キーを環境変数で指定してサーバーを起動します。
 
    ```bash
-   CONNPASS_API_KEY=あなたのAPIキー pnpm --filter @connpass-discord-bot/mcp-server start
+   CONNPASS_API_KEY=あなたのAPIキー pnpm --filter @kajidog/connpass-mcp-server start
    ```
 
    > ローカル開発時などで API キーが未設定の場合、`dummy-key` が自動で使用されます。
@@ -36,6 +36,27 @@ Connpass MCP Server は、MCP (Model Context Protocol) 経由で Connpass API �
 | `CONNPASS_PRESENTATION_CACHE_ENABLED` | プレゼンテーション取得結果をディスクキャッシュするかどうか。 | `true` |
 | `CONNPASS_PRESENTATION_CACHE_TTL_MS` | キャッシュ保持期間（ミリ秒）。 | `3600000` |
 | `CONNPASS_PRESENTATION_CACHE_PATH` | キャッシュファイルの保存先パス。 | `./data/presentation-cache.json` |
+
+## npm パッケージ公開フロー
+
+`@kajidog/connpass-mcp-server` は npm で公開できるよう設定されています（内部で `@kajidog/connpass-api-client` を利用するため、MCP サーバーを公開する場合は API クライアントも同じバージョンで公開する必要があります）。ワークスペース内だけで使う場合は API クライアントを公開する必要はありません。
+
+1. `.npmrc` などで npm token を設定します（`//registry.npmjs.org/:_authToken=<TOKEN>`）。
+2. 変更を反映する Changeset を作成します。
+   ```bash
+   pnpm changeset
+   ```
+3. バージョンと changelog を反映します。
+   ```bash
+   pnpm version-packages
+   ```
+4. 全パッケージをビルドし、npm へ公開します。
+   ```bash
+   pnpm release
+   ```
+   `pnpm release` は `pnpm build`（ワークスペース全体のビルド）と `pnpm changeset publish` を順に実行します。MCP サーバ単体を手動で公開したい場合は `pnpm --filter @kajidog/connpass-mcp-server publish --access public` を利用できます。
+
+公開前に `pnpm --filter @kajidog/connpass-mcp-server typecheck` で型チェック、`pnpm --filter @kajidog/connpass-mcp-server build` でビルドを確認しておくと安全です。
 
 ## ツール一覧
 
@@ -119,7 +140,7 @@ Connpass MCP Server は、MCP (Model Context Protocol) 経由で Connpass API �
 
 ## 開発補助
 
-- 型チェック: `pnpm --filter @connpass-discord-bot/mcp-server typecheck`
-- ウォッチビルド: `pnpm --filter @connpass-discord-bot/mcp-server dev`
+- 型チェック: `pnpm --filter @kajidog/connpass-mcp-server typecheck`
+- ウォッチビルド: `pnpm --filter @kajidog/connpass-mcp-server dev`
 
 ツールの追加や更新を行った際は、`pnpm build` 実行後に README も更新して最新の引数仕様を反映するようにしてください。

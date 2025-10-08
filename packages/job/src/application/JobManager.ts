@@ -1,4 +1,4 @@
-import { ConnpassClient, EventsResponse, Event } from '@connpass-discord-bot/api-client';
+import { ConnpassClient, EventsResponse, Event } from '@kajidog/connpass-api-client';
 import { Job, JobConfig, JobSink } from '../domain/types';
 import { IJobStore } from '../domain/repositories/IJobStore';
 

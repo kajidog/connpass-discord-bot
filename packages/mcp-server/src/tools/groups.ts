@@ -1,6 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { ConnpassClient } from "@connpass-discord-bot/api-client";
+import { ConnpassClient } from "@kajidog/connpass-api-client";
 
 import { applyPagination, GROUP_SORT_KEYS, GROUP_SORT_MAP, GroupSortKey } from "./shared.js";
 

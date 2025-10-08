@@ -17,7 +17,7 @@
     "@discordjs/rest": "^2.3.0",
     "discord-api-types": "^0.37.83",
     "@connpass-discord-bot/job": "workspace:*",
-    "@connpass-discord-bot/api-client": "workspace:*"
+    "@kajidog/connpass-api-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

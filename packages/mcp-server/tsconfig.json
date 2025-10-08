@@ -1,16 +1,26 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
     "moduleResolution": "node",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
+    "composite": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@kajidog/connpass-api-client": ["../api-client/src"],
+      "@kajidog/connpass-api-client/*": ["../api-client/src/*"]
+    }
   },
+  "references": [{ "path": "../api-client" }],
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

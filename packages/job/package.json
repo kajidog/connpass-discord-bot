@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@connpass-discord-bot/api-client": "workspace:*"
+    "@kajidog/connpass-api-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

@@ -5,7 +5,7 @@ TypeScript client for Connpass API v2 with clean architecture design.
 ## Installation
 
 ```bash
-pnpm install @connpass-discord-bot/api-client
+pnpm install @kajidog/connpass-api-client
 ```
 
 ## Usage
@@ -13,7 +13,7 @@ pnpm install @connpass-discord-bot/api-client
 ### Basic Usage
 
 ```typescript
-import { ConnpassClient } from '@connpass-discord-bot/api-client';
+import { ConnpassClient } from '@kajidog/connpass-api-client';
 
 const client = new ConnpassClient({
   apiKey: 'your-api-key-here'
@@ -116,7 +116,7 @@ import {
   ConnpassRateLimitError, 
   ConnpassValidationError,
   ConnpassTimeoutError 
-} from '@connpass-discord-bot/api-client';
+} from '@kajidog/connpass-api-client';
 
 try {
   const events = await client.searchEvents({ keyword: 'TypeScript' });
