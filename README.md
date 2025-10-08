@@ -10,6 +10,27 @@ Connpass のイベント情報を定期取得し、Discord チャンネルへ新
 - `packages/mastra`（任意）: Mastra Agent サーバ（AI要約に使用、OpenAI などの LLM キーが必要）
 - `packages/mcp-server`（任意）: MCP（Model Context Protocol）サーバ。Connpass API を MCP 経由で利用するためのツール群
 
+## リリース / 公開フロー
+
+npm への公開は Changesets で管理します。MCP サーバー（`@kajidog/connpass-mcp-server`）は API クライアント（`@kajidog/connpass-api-client`）に依存しているため、MCP サーバーを npm で提供したい場合は API クライアントも同じリリースサイクルで公開する必要があります（Changesets が内部依存を自動で更新します）。ワークスペース内のみで利用する場合は API クライアントを公開する必要はありません。
+
+1. `.npmrc` に発行済み npm token を設定します。
+2. 変更内容を記述した Changeset を作成します。
+   ```bash
+   pnpm changeset
+   ```
+3. バージョンと changelog を生成します。
+   ```bash
+   pnpm version-packages
+   ```
+4. すべてのパッケージをビルドして公開します。
+   ```bash
+   pnpm release
+   ```
+   `pnpm release` は `pnpm build` と `pnpm changeset publish` を順に実行します。
+
+個別に公開する場合は `pnpm --filter <package-name> publish --access public` を実行してください。
+
 ---
 
 ## 特長

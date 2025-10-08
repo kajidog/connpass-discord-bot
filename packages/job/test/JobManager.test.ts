@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { InMemoryJobStore } from '../src/infrastructure/InMemoryJobStore';
 import { JobManager } from '../src/application/JobManager';
 import type { JobSink } from '../src/domain/types';
-import type { ConnpassClient, Event } from '@connpass-discord-bot/api-client';
+import type { ConnpassClient, Event } from '@kajidog/connpass-api-client';
 
 class CollectSink implements JobSink {
   public payloads: any[] = [];

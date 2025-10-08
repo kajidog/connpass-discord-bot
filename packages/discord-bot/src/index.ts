@@ -1,5 +1,5 @@
 import { Client, GatewayIntentBits, Events, InteractionType } from 'discord.js';
-import { ConnpassClient, type EventsResponse, type PresentationsResponse } from '@connpass-discord-bot/api-client';
+import { ConnpassClient, type EventsResponse, type PresentationsResponse } from '@kajidog/connpass-api-client';
 import { createInProcessRunner, FileJobStore, FileUserStore, InMemoryUserStore, UserManager } from '@connpass-discord-bot/job';
 import { DiscordSink } from './sink';
 import { handleCommand } from './commands';

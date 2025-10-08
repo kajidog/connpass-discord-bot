@@ -59,7 +59,7 @@ export interface Job extends JobConfig {
 export interface NewEventsPayload {
   jobId: string;
   channelId: string;
-  events: import('@connpass-discord-bot/api-client').Event[];
+  events: import('@kajidog/connpass-api-client').Event[];
 }
 
 export interface JobSink {
@@ -83,6 +83,6 @@ export interface ReportPayloadMeta {
 export interface ReportPayload {
   jobId: string;
   channelId: string;
-  events: import('@connpass-discord-bot/api-client').Event[];
+  events: import('@kajidog/connpass-api-client').Event[];
   meta: ReportPayloadMeta;
 }

@@ -1,6 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { ConnpassClient } from "@connpass-discord-bot/api-client";
+import { ConnpassClient } from "@kajidog/connpass-api-client";
 
 import {
   applyPagination,
@@ -18,7 +18,7 @@ import {
   FormatEventOptions,
 } from "./formatting.js";
 import { getDefaultIncludePresentations, getDefaultUserId } from "../config.js";
-import type { Event, PresentationsResponse } from "@connpass-discord-bot/api-client";
+import type { Event, PresentationsResponse } from "@kajidog/connpass-api-client";
 
 const EventSearchInputSchema = z.object({
   query: z
