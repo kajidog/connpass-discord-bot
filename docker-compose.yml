@@ -1,0 +1,14 @@
+services:
+  bot:
+    build: .
+    environment:
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID}
+      CONNPASS_API_KEY: ${CONNPASS_API_KEY}
+      JOB_STORE_DIR: /data
+    volumes:
+      - bot-data:/data
+    restart: unless-stopped
+
+volumes:
+  bot-data:
