@@ -1,4 +1,4 @@
-import { Message, TextChannel, ThreadChannel } from 'discord.js';
+import { Message, TextChannel, ThreadChannel, ActionRow, MessageActionRowComponent } from 'discord.js';
 import { Agent } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import type { ConnpassClient } from '@kajidog/connpass-api-client';
@@ -19,7 +19,6 @@ export async function handleAgentMention(
   agent: Agent,
   context: AgentContext
 ): Promise<void> {
-  // メンションを除去したメッセージ内容を取得
   const content = message.content
     .replace(/<@!?\d+>/g, '')
     .trim();
@@ -31,9 +30,41 @@ export async function handleAgentMention(
 
   // スレッドで返信（既存スレッドまたは新規作成）
   let thread: ThreadChannel;
+  let contextInfo = '';
 
   if (message.channel.isThread()) {
     thread = message.channel as ThreadChannel;
+    
+    // スレッドの開始メッセージ（イベント詳細）を取得してコンテキストにする
+    try {
+      const starterMsg = await thread.fetchStarterMessage();
+      if (starterMsg) {
+        const embed = starterMsg.embeds[0];
+        if (embed) {
+          contextInfo += `\n\n【現在のトピック情報】\n`;
+          if (embed.title) contextInfo += `イベント名: ${embed.title}\n`;
+          if (embed.url) contextInfo += `URL: ${embed.url}\n`;
+          
+          // ボタンからイベントIDを取得
+          const row = starterMsg.components[0] as ActionRow<MessageActionRowComponent> | undefined;
+          if (row && 'components' in row) {
+            const button = row.components.find((c: MessageActionRowComponent) => 
+              'customId' in c && c.customId?.startsWith('ev:')
+            );
+            if (button && 'customId' in button && button.customId) {
+              const parts = button.customId.split(':');
+              if (parts.length >= 3) {
+                contextInfo += `イベントID: ${parts[2]}\n`;
+              }
+            }
+          }
+          contextInfo += `(ユーザーはこのイベントについて質問しています)\n`;
+        }
+      }
+    } catch (e) {
+      console.warn('[Agent] Failed to fetch starter message:', e);
+    }
+
   } else {
     // 新規スレッドを作成
     const textChannel = message.channel as TextChannel;
@@ -57,6 +88,9 @@ export async function handleAgentMention(
     runtimeContext.set('discordUserId', message.author.id);
     runtimeContext.set('channelId', message.channelId);
     runtimeContext.set('guildId', message.guildId);
+    if (contextInfo) {
+      runtimeContext.set('eventContext', contextInfo);
+    }
 
     // メモリ用のIDを設定
     // resourceId: ユーザー毎のワーキングメモリ
@@ -67,13 +101,19 @@ export async function handleAgentMention(
     };
 
     // エージェントを実行
-    const response = await agent.generate(content, {
+    // @ts-ignore streamLegacy is not in the type definition but exists at runtime
+    const stream = await agent.streamLegacy(content, {
       runtimeContext,
       memory: memoryOptions,
     });
 
+    let responseText = '';
+    for await (const chunk of stream.textStream) {
+      responseText += chunk;
+    }
+
     // 2000文字制限を考慮して分割送信
-    const chunks = splitMessage(response.text, 2000);
+    const chunks = splitMessage(responseText, 2000);
     for (const chunk of chunks) {
       await thread.send(chunk);
     }
@@ -101,9 +141,39 @@ export async function handleAgentMentionStream(
   }
 
   let thread: ThreadChannel;
+  let contextInfo = '';
 
   if (message.channel.isThread()) {
     thread = message.channel as ThreadChannel;
+
+    // スレッドの開始メッセージからコンテキストを取得
+    try {
+      const starterMsg = await thread.fetchStarterMessage();
+      if (starterMsg) {
+        const embed = starterMsg.embeds[0];
+        if (embed) {
+          contextInfo += `\n\n【現在のトピック情報】\n`;
+          if (embed.title) contextInfo += `イベント名: ${embed.title}\n`;
+          if (embed.url) contextInfo += `URL: ${embed.url}\n`;
+          
+          const row = starterMsg.components[0] as ActionRow<MessageActionRowComponent> | undefined;
+          if (row && 'components' in row) {
+            const button = row.components.find((c: MessageActionRowComponent) => 
+              'customId' in c && c.customId?.startsWith('ev:')
+            );
+            if (button && 'customId' in button && button.customId) {
+              const parts = button.customId.split(':');
+              if (parts.length >= 3) {
+                contextInfo += `イベントID: ${parts[2]}\n`;
+              }
+            }
+          }
+          contextInfo += `(ユーザーはこのイベントについて質問しています)\n`;
+        }
+      }
+    } catch (e) {
+      console.warn('[Agent] Failed to fetch starter message:', e);
+    }
   } else {
     const textChannel = message.channel as TextChannel;
     thread = await textChannel.threads.create({
@@ -124,6 +194,9 @@ export async function handleAgentMentionStream(
     runtimeContext.set('discordUserId', message.author.id);
     runtimeContext.set('channelId', message.channelId);
     runtimeContext.set('guildId', message.guildId);
+    if (contextInfo) {
+      runtimeContext.set('eventContext', contextInfo);
+    }
 
     const memoryOptions = {
       resource: message.author.id,
@@ -131,7 +204,8 @@ export async function handleAgentMentionStream(
     };
 
     // ストリーミングで実行
-    const stream = await agent.stream(content, {
+    // @ts-ignore streamLegacy is not in the type definition but exists at runtime
+    const stream = await agent.streamLegacy(content, {
       runtimeContext,
       memory: memoryOptions,
     });

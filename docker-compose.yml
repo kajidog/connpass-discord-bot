@@ -11,6 +11,10 @@ services:
       AGENT_DATABASE_URL: file:/data/agent-memory.db
     volumes:
       - bot-data:/data
+      - ./apps:/app/apps
+      - ./packages:/app/packages
+      - /app/apps/discord-bot/node_modules
+      - /app/apps/ai-agent/node_modules
     restart: unless-stopped
 
 volumes:

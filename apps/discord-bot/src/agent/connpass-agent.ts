@@ -21,15 +21,15 @@ import { CronExpressionParser } from 'cron-parser';
 
 const searchEventsTool = createTool({
   id: 'search-events',
-  description: `Connpassでイベントを検索します。
-キーワード、日付範囲、場所などで絞り込みが可能です。`,
+  description: `Search for events on Connpass.
+You can filter by keywords, date range, location, etc.`,
   inputSchema: z.object({
-    keyword: z.string().optional().describe('検索キーワード'),
-    prefecture: z.string().optional().describe('都道府県名（例: 東京都）'),
-    ymdFrom: z.string().optional().describe('開始日（YYYY-MM-DD）'),
-    ymdTo: z.string().optional().describe('終了日（YYYY-MM-DD）'),
-    ownerNickname: z.string().optional().describe('主催者ニックネーム'),
-    count: z.number().min(1).max(30).default(10).describe('取得件数'),
+    keyword: z.string().optional().describe('Search keywords'),
+    prefecture: z.string().optional().describe('Prefecture name (e.g. Tokyo)'),
+    ymdFrom: z.string().optional().describe('Start date (YYYY-MM-DD)'),
+    ymdTo: z.string().optional().describe('End date (YYYY-MM-DD)'),
+    ownerNickname: z.string().optional().describe('Organizer nickname'),
+    count: z.number().min(1).max(30).default(10).describe('Number of items to retrieve'),
   }),
   outputSchema: z.object({
     events: z.array(z.object({
@@ -104,9 +104,9 @@ const searchEventsTool = createTool({
 
 const getEventDetailsTool = createTool({
   id: 'get-event-details',
-  description: 'イベントIDから詳細情報を取得します',
+  description: 'Get detailed information for a specific event ID.',
   inputSchema: z.object({
-    eventId: z.number().describe('ConnpassイベントID'),
+    eventId: z.number().describe('Connpass Event ID'),
   }),
   outputSchema: z.object({
     event: z.object({
@@ -175,10 +175,10 @@ const getEventDetailsTool = createTool({
 
 const getUserScheduleTool = createTool({
   id: 'get-user-schedule',
-  description: 'ユーザーの参加予定イベントを取得します',
+  description: 'Get the user\'s scheduled/participating events. If no nickname is specified, it automatically uses the registered nickname linked to the Discord User ID.',
   inputSchema: z.object({
-    nickname: z.string().optional().describe('Connpassニックネーム'),
-    daysAhead: z.number().min(1).max(90).default(30).describe('何日先まで'),
+    nickname: z.string().optional().describe('Connpass nickname. If omitted, uses the registered user info.'),
+    daysAhead: z.number().min(1).max(90).default(30).describe('Days to look ahead'),
   }),
   outputSchema: z.object({
     nickname: z.string().optional(),
@@ -258,10 +258,10 @@ const getUserScheduleTool = createTool({
 
 const manageFeedTool = createTool({
   id: 'manage-feed',
-  description: 'フィード設定を管理します（status/create/update/delete）',
+  description: 'Manage feed settings (status/create/update/delete)',
   inputSchema: z.object({
-    action: z.enum(['status', 'create', 'update', 'delete']).describe('アクション'),
-    channelId: z.string().optional().describe('チャンネルID'),
+    action: z.enum(['status', 'create', 'update', 'delete']).describe('Action to perform'),
+    channelId: z.string().optional().describe('Channel ID'),
     config: z.object({
       schedule: z.string().optional(),
       rangeDays: z.number().optional(),
@@ -420,9 +420,12 @@ const memory = new Memory({
 // エージェント定義
 // ============================================
 
+import { RuntimeContext } from '@mastra/core/runtime-context';
+
 export const connpassAgent = new Agent({
   name: 'Connpass Assistant',
-  instructions: `あなたはConnpassイベントの検索・管理をサポートする日本語アシスタントです。
+  instructions: async ({ runtimeContext }) => {
+    const baseInstructions = `あなたはConnpassイベントの検索・管理をサポートする日本語アシスタントです。
 
 ## 役割
 1. イベント検索: ユーザーの興味に合わせてイベントを探す
@@ -448,8 +451,15 @@ export const connpassAgent = new Agent({
 - 日本語で回答
 - ユーザーの興味をワーキングメモリに記録
 - HTML説明は重要情報を抽出して要約
-`,
-  model: openai('gpt-4o-mini'),
+- 「私のイベント」や「予定」について聞かれた際は、ニックネームを聞き返さずに getUserSchedule を引数なし（または必要な日数のみ）で呼び出してください。ツール側で自動的に登録情報を参照します。`;
+
+    const eventContext = runtimeContext?.get('eventContext') as string | undefined;
+    if (eventContext) {
+      return `${baseInstructions}\n${eventContext}`;
+    }
+    return baseInstructions;
+  },
+  model: openai('gpt-5-mini'),
   tools: {
     searchEvents: searchEventsTool,
     getEventDetails: getEventDetailsTool,
