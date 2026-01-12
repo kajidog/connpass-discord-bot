@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, Message } from 'discord.js';
+import { Client, GatewayIntentBits, Events, Message, ChannelType, Partials } from 'discord.js';
 import { ConnpassClient } from '@kajidog/connpass-api-client';
 import {
   FileFeedStore,
@@ -56,7 +56,9 @@ const discordClient = new Client({
     // AIエージェント用：メッセージ内容を読むためのIntent
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.DirectMessages,
   ],
+  partials: [Partials.Channel],
 });
 
 const connpassClient = new ConnpassClient({
@@ -177,9 +179,12 @@ if (ENABLE_AI_AGENT && OPENAI_API_KEY) {
     // Botからのメッセージは無視
     if (message.author.bot) return;
 
-    // メンションされていない場合は無視
-    if (!discordClient.user) return;
-    if (!message.mentions.has(discordClient.user)) return;
+    // メンションされていない場合は無視（DM以外）
+    const isDM = message.channel.type === ChannelType.DM;
+    if (!isDM) {
+      if (!discordClient.user) return;
+      if (!message.mentions.has(discordClient.user)) return;
+    }
 
     try {
       await handleAgentMention(message, connpassAgent, agentContext);

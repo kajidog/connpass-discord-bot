@@ -318,7 +318,7 @@ const manageFeedTool = createTool({
             return { success: false, feed: formatFeed(existing), message: '既に存在します' };
           }
 
-          const cron = CronExpressionParser.parse(context.config.schedule);
+          const cron = CronExpressionParser.parse(context.config.schedule, { tz: 'Asia/Tokyo' });
           const nextRun = cron.next();
           const newFeed: Feed = {
             config: {
@@ -344,7 +344,7 @@ const manageFeedTool = createTool({
             return { success: false, feed: null, message: 'フィードがありません' };
           }
           if (context.config?.schedule) {
-            const cron = CronExpressionParser.parse(context.config.schedule);
+            const cron = CronExpressionParser.parse(context.config.schedule, { tz: 'Asia/Tokyo' });
             feed.config.schedule = context.config.schedule;
             feed.state.nextRunAt = cron.next().getTime();
           }

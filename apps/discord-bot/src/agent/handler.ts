@@ -1,4 +1,4 @@
-import { Message, TextChannel, ThreadChannel, ActionRow, MessageActionRowComponent } from 'discord.js';
+import { Message, TextChannel, ThreadChannel, ActionRow, MessageActionRowComponent, ChannelType, TextBasedChannel } from 'discord.js';
 import { Agent } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import type { ConnpassClient } from '@kajidog/connpass-api-client';
@@ -28,15 +28,19 @@ export async function handleAgentMention(
     return;
   }
 
-  // スレッドで返信（既存スレッドまたは新規作成）
-  let thread: ThreadChannel;
+  // 返信先チャンネル（スレッドまたはDM）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let targetChannel: any;
   let contextInfo = '';
 
-  if (message.channel.isThread()) {
-    thread = message.channel as ThreadChannel;
+  if (message.channel.type === ChannelType.DM) {
+    targetChannel = message.channel as TextBasedChannel;
+  } else if (message.channel.isThread()) {
+    targetChannel = message.channel as ThreadChannel;
     
     // スレッドの開始メッセージ（イベント詳細）を取得してコンテキストにする
     try {
+      const thread = targetChannel as ThreadChannel;
       const starterMsg = await thread.fetchStarterMessage();
       if (starterMsg) {
         const embed = starterMsg.embeds[0];
@@ -68,7 +72,7 @@ export async function handleAgentMention(
   } else {
     // 新規スレッドを作成
     const textChannel = message.channel as TextChannel;
-    thread = await textChannel.threads.create({
+    targetChannel = await textChannel.threads.create({
       name: `🤖 ${content.slice(0, 50)}${content.length > 50 ? '...' : ''}`,
       startMessage: message,
       autoArchiveDuration: 60, // 1時間で自動アーカイブ
@@ -76,7 +80,11 @@ export async function handleAgentMention(
   }
 
   // 入力中表示
-  await thread.sendTyping();
+  // 入力中表示（継続的）
+  await targetChannel.sendTyping();
+  const typingInterval = setInterval(() => {
+    targetChannel.sendTyping().catch(() => {});
+  }, 5000);
 
   try {
     // RuntimeContextを構築
@@ -97,7 +105,7 @@ export async function handleAgentMention(
     // threadId: 会話毎のメッセージ履歴
     const memoryOptions = {
       resource: message.author.id,
-      thread: thread.id,
+      thread: targetChannel.id,
     };
 
     // エージェントを実行
@@ -115,11 +123,13 @@ export async function handleAgentMention(
     // 2000文字制限を考慮して分割送信
     const chunks = splitMessage(responseText, 2000);
     for (const chunk of chunks) {
-      await thread.send(chunk);
+      await targetChannel.send(chunk);
     }
   } catch (error) {
     console.error('[Agent] Error:', error);
-    await thread.send('申し訳ありません。エラーが発生しました。');
+    await targetChannel.send('申し訳ありません。エラーが発生しました。');
+  } finally {
+    clearInterval(typingInterval);
   }
 }
 
@@ -140,14 +150,19 @@ export async function handleAgentMentionStream(
     return;
   }
 
-  let thread: ThreadChannel;
+  // 返信先チャンネル（スレッドまたはDM）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let targetChannel: any;
   let contextInfo = '';
 
-  if (message.channel.isThread()) {
-    thread = message.channel as ThreadChannel;
+  if (message.channel.type === ChannelType.DM) {
+    targetChannel = message.channel;
+  } else if (message.channel.isThread()) {
+    targetChannel = message.channel as ThreadChannel;
 
     // スレッドの開始メッセージからコンテキストを取得
     try {
+      const thread = targetChannel as ThreadChannel;
       const starterMsg = await thread.fetchStarterMessage();
       if (starterMsg) {
         const embed = starterMsg.embeds[0];
@@ -176,14 +191,18 @@ export async function handleAgentMentionStream(
     }
   } else {
     const textChannel = message.channel as TextChannel;
-    thread = await textChannel.threads.create({
+    targetChannel = await textChannel.threads.create({
       name: `🤖 ${content.slice(0, 50)}${content.length > 50 ? '...' : ''}`,
       startMessage: message,
       autoArchiveDuration: 60,
     });
   }
 
-  await thread.sendTyping();
+  // 入力中表示（継続的）
+  await targetChannel.sendTyping();
+  const typingInterval = setInterval(() => {
+    targetChannel.sendTyping().catch(() => {});
+  }, 5000);
 
   try {
     const runtimeContext = new RuntimeContext();
@@ -200,7 +219,7 @@ export async function handleAgentMentionStream(
 
     const memoryOptions = {
       resource: message.author.id,
-      thread: thread.id,
+      thread: targetChannel.id,
     };
 
     // ストリーミングで実行
@@ -219,11 +238,13 @@ export async function handleAgentMentionStream(
     // 分割送信
     const chunks = splitMessage(fullText, 2000);
     for (const chunk of chunks) {
-      await thread.send(chunk);
+      await targetChannel.send(chunk);
     }
   } catch (error) {
     console.error('[Agent] Stream error:', error);
-    await thread.send('申し訳ありません。エラーが発生しました。');
+    await targetChannel.send('申し訳ありません。エラーが発生しました。');
+  } finally {
+    clearInterval(typingInterval);
   }
 }
 
