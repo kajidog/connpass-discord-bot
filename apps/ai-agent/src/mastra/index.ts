@@ -8,11 +8,7 @@ import { connpassAgent } from './agents/connpass-agent.js';
 // 天気エージェント（サンプル用に残す）
 import { weatherWorkflow } from './workflows/weather-workflow.js';
 import { weatherAgent } from './agents/weather-agent.js';
-import {
-  toolCallAppropriatenessScorer,
-  completenessScorer,
-  translationScorer,
-} from './scorers/weather-scorer.js';
+import { translationScorer } from './scorers/weather-scorer.js';
 
 /**
  * Mastraインスタンス
@@ -28,8 +24,6 @@ export const mastra = new Mastra({
     weatherWorkflow,
   },
   scorers: {
-    toolCallAppropriatenessScorer,
-    completenessScorer,
     translationScorer,
   },
   storage: new LibSQLStore({

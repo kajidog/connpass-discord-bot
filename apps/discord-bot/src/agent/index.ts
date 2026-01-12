@@ -1,1 +1,1 @@
-export { handleAgentMention, handleAgentMentionStream, type AgentContext } from './handler.js';
+export { handleAgentMention, handleAgentMentionStream, handleAgentMentionWithProgress, type AgentContext } from './handler.js';

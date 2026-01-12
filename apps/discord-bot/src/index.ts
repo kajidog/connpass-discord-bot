@@ -23,7 +23,7 @@ import {
 } from './commands/handlers/user.js';
 import { handleToday } from './commands/handlers/today.js';
 import { handleHelp } from './commands/handlers/help.js';
-import { handleAgentMention, type AgentContext } from './agent/index.js';
+import { handleAgentMentionWithProgress, type AgentContext } from './agent/index.js';
 import { connpassAgent } from './agent/connpass-agent.js';
 
 // 環境変数チェック
@@ -187,7 +187,7 @@ if (ENABLE_AI_AGENT && OPENAI_API_KEY) {
     }
 
     try {
-      await handleAgentMention(message, connpassAgent, agentContext);
+      await handleAgentMentionWithProgress(message, connpassAgent, agentContext);
     } catch (error) {
       console.error('[Agent] Error handling mention:', error);
       try {

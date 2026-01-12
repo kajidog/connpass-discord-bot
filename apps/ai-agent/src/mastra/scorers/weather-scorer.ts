@@ -1,14 +1,5 @@
 import { z } from 'zod';
-import { createToolCallAccuracyScorerCode } from '@mastra/evals/scorers/code';
-import { createCompletenessScorer } from '@mastra/evals/scorers/code';
 import { createScorer } from '@mastra/core/scores';
-
-export const toolCallAppropriatenessScorer = createToolCallAccuracyScorerCode({
-  expectedTool: 'weatherTool',
-  strictMode: false,
-});
-
-export const completenessScorer = createCompletenessScorer();
 
 // Custom LLM-judged scorer: evaluates if non-English locations are translated appropriately
 export const translationScorer = createScorer({
@@ -75,7 +66,5 @@ export const translationScorer = createScorer({
   });
 
 export const scorers = {
-  toolCallAppropriatenessScorer,
-  completenessScorer,
   translationScorer,
 };

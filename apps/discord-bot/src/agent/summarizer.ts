@@ -53,7 +53,7 @@ export async function summarizeEventDetails(
 
 説明:
 ${event.description}`,
-      maxTokens: 300,
+      maxOutputTokens: 300,
     });
 
     const summary = result.text.trim();

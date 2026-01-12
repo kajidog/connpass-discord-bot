@@ -14,6 +14,7 @@ import type {
 } from '@connpass-discord-bot/core';
 import { ORDER_MAP, DEFAULTS } from '@connpass-discord-bot/core';
 import { CronExpressionParser } from 'cron-parser';
+import { ProgressEmbed } from './progress-embed.js';
 
 // ============================================
 // ツール定義
@@ -51,6 +52,9 @@ You can filter by keywords, date range, location, etc.`,
     message: z.string(),
   }),
   execute: async ({ context, runtimeContext }) => {
+    const progress = runtimeContext?.get('progress') as ProgressEmbed | undefined;
+    progress?.addToolCall('searchEvents', context);
+
     const client = runtimeContext?.get('connpassClient') as ConnpassClient | undefined;
     if (!client) {
       return { events: [], total: 0, message: 'クライアント未設定' };
@@ -89,6 +93,8 @@ You can filter by keywords, date range, location, etc.`,
         hashTag: e.hashTag || '',
       }));
 
+      progress?.addToolResult('searchEvents', true, `${events.length}件`);
+
       return {
         events,
         total: events.length,
@@ -97,6 +103,7 @@ You can filter by keywords, date range, location, etc.`,
           : '見つかりませんでした',
       };
     } catch (error) {
+      progress?.addToolResult('searchEvents', false, 'エラー');
       return { events: [], total: 0, message: `エラー: ${error}` };
     }
   },
@@ -131,6 +138,9 @@ const getEventDetailsTool = createTool({
     message: z.string(),
   }),
   execute: async ({ context, runtimeContext }) => {
+    const progress = runtimeContext?.get('progress') as ProgressEmbed | undefined;
+    progress?.addToolCall('getEventDetails', context);
+
     const client = runtimeContext?.get('connpassClient') as ConnpassClient | undefined;
     if (!client) {
       return { event: null, message: 'クライアント未設定' };
@@ -141,10 +151,13 @@ const getEventDetailsTool = createTool({
       const events = response.events as ConnpassEvent[];
 
       if (events.length === 0) {
+        progress?.addToolResult('getEventDetails', false, '見つかりません');
         return { event: null, message: `ID ${context.eventId} が見つかりません` };
       }
 
       const e = events[0];
+      progress?.addToolResult('getEventDetails', true, e.title.slice(0, 15) + '...');
+      
       return {
         event: {
           id: e.id,
@@ -168,6 +181,7 @@ const getEventDetailsTool = createTool({
         message: '取得しました',
       };
     } catch (error) {
+      progress?.addToolResult('getEventDetails', false, 'エラー');
       return { event: null, message: `エラー: ${error}` };
     }
   },
@@ -196,6 +210,9 @@ const getUserScheduleTool = createTool({
     message: z.string(),
   }),
   execute: async ({ context, runtimeContext }) => {
+    const progress = runtimeContext?.get('progress') as ProgressEmbed | undefined;
+    progress?.addToolCall('getUserSchedule', context);
+
     const client = runtimeContext?.get('connpassClient') as ConnpassClient | undefined;
     const userStore = runtimeContext?.get('userStore') as IUserStore | undefined;
     const discordUserId = runtimeContext?.get('discordUserId') as string | undefined;
@@ -211,6 +228,7 @@ const getUserScheduleTool = createTool({
     }
 
     if (!nickname) {
+      progress?.addToolResult('getUserSchedule', false, 'ニックネーム必須');
       return {
         events: [],
         total: 0,
@@ -242,6 +260,8 @@ const getUserScheduleTool = createTool({
         limit: e.limit,
       }));
 
+      progress?.addToolResult('getUserSchedule', true, `${events.length}件`);
+
       return {
         nickname,
         events,
@@ -251,6 +271,7 @@ const getUserScheduleTool = createTool({
           : `${nickname}さんの予定はありません`,
       };
     } catch (error) {
+      progress?.addToolResult('getUserSchedule', false, 'エラー');
       return { nickname, events: [], total: 0, message: `エラー: ${error}` };
     }
   },
@@ -287,6 +308,9 @@ const manageFeedTool = createTool({
     message: z.string(),
   }),
   execute: async ({ context, runtimeContext }) => {
+    const progress = runtimeContext?.get('progress') as ProgressEmbed | undefined;
+    progress?.addToolCall('manageFeed', context);
+
     const feedStore = runtimeContext?.get('feedStore') as IFeedStore | undefined;
     const currentChannelId = runtimeContext?.get('channelId') as string | undefined;
 
@@ -300,21 +324,28 @@ const manageFeedTool = createTool({
     }
 
     try {
+      let resultMessage = '';
       switch (context.action) {
         case 'status': {
           const feed = await feedStore.get(channelId);
           if (!feed) {
+            resultMessage = '未設定';
+            progress?.addToolResult('manageFeed', true, resultMessage);
             return { success: true, feed: null, message: 'フィード未設定' };
           }
+          resultMessage = '設定取得';
+          progress?.addToolResult('manageFeed', true, resultMessage);
           return { success: true, feed: formatFeed(feed), message: '取得しました' };
         }
 
         case 'create': {
           if (!context.config?.schedule) {
+            progress?.addToolResult('manageFeed', false, 'schedule不足');
             return { success: false, feed: null, message: 'scheduleが必要です' };
           }
           const existing = await feedStore.get(channelId);
           if (existing) {
+            progress?.addToolResult('manageFeed', false, '既に存在');
             return { success: false, feed: formatFeed(existing), message: '既に存在します' };
           }
 
@@ -335,12 +366,14 @@ const manageFeedTool = createTool({
             state: { sentEvents: {}, nextRunAt: nextRun.getTime() },
           };
           await feedStore.save(newFeed);
+          progress?.addToolResult('manageFeed', true, '作成完了');
           return { success: true, feed: formatFeed(newFeed), message: '作成しました' };
         }
 
         case 'update': {
           const feed = await feedStore.get(channelId);
           if (!feed) {
+             progress?.addToolResult('manageFeed', false, '未設定');
             return { success: false, feed: null, message: 'フィードがありません' };
           }
           if (context.config?.schedule) {
@@ -354,18 +387,22 @@ const manageFeedTool = createTool({
           if (context.config?.location) feed.config.location = context.config.location;
           if (context.config?.hashtag) feed.config.hashtag = context.config.hashtag;
           await feedStore.save(feed);
+          progress?.addToolResult('manageFeed', true, '更新完了');
           return { success: true, feed: formatFeed(feed), message: '更新しました' };
         }
 
         case 'delete': {
           await feedStore.delete(channelId);
+          progress?.addToolResult('manageFeed', true, '削除完了');
           return { success: true, feed: null, message: '削除しました' };
         }
 
         default:
+          progress?.addToolResult('manageFeed', false, '不明な操作');
           return { success: false, feed: null, message: '不明なアクション' };
       }
     } catch (error) {
+      progress?.addToolResult('manageFeed', false, 'エラー');
       return { success: false, feed: null, message: `エラー: ${error}` };
     }
   },
@@ -459,7 +496,7 @@ export const connpassAgent = new Agent({
     }
     return baseInstructions;
   },
-  model: openai('gpt-5-mini'),
+  model: openai.responses('gpt-5-mini'),
   tools: {
     searchEvents: searchEventsTool,
     getEventDetails: getEventDetailsTool,

@@ -23,20 +23,6 @@ export const weatherAgent = new Agent({
   model: 'openai/gpt-4o-mini',
   tools: { weatherTool },
   scorers: {
-    toolCallAppropriateness: {
-      scorer: scorers.toolCallAppropriatenessScorer,
-      sampling: {
-        type: 'ratio',
-        rate: 1,
-      },
-    },
-    completeness: {
-      scorer: scorers.completenessScorer,
-      sampling: {
-        type: 'ratio',
-        rate: 1,
-      },
-    },
     translation: {
       scorer: scorers.translationScorer,
       sampling: {
