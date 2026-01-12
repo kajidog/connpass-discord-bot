@@ -1,29 +1,56 @@
-
 import { Mastra } from '@mastra/core/mastra';
 import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
-import { weatherWorkflow } from './workflows/weather-workflow';
-import { weatherAgent } from './agents/weather-agent';
-import { toolCallAppropriatenessScorer, completenessScorer, translationScorer } from './scorers/weather-scorer';
 
+// Connpassエージェント
+import { connpassAgent } from './agents/connpass-agent.js';
+
+// 天気エージェント（サンプル用に残す）
+import { weatherWorkflow } from './workflows/weather-workflow.js';
+import { weatherAgent } from './agents/weather-agent.js';
+import {
+  toolCallAppropriatenessScorer,
+  completenessScorer,
+  translationScorer,
+} from './scorers/weather-scorer.js';
+
+/**
+ * Mastraインスタンス
+ */
 export const mastra = new Mastra({
-  workflows: { weatherWorkflow },
-  agents: { weatherAgent },
-  scorers: { toolCallAppropriatenessScorer, completenessScorer, translationScorer },
+  agents: {
+    // メインのConnpassアシスタント
+    connpassAgent,
+    // サンプル用
+    weatherAgent,
+  },
+  workflows: {
+    weatherWorkflow,
+  },
+  scorers: {
+    toolCallAppropriatenessScorer,
+    completenessScorer,
+    translationScorer,
+  },
   storage: new LibSQLStore({
-    // stores observability, scores, ... into memory storage, if it needs to persist, change to file:../mastra.db
-    url: ":memory:",
+    // 環境変数で永続化DBを指定可能
+    url: process.env.MASTRA_STORAGE_URL || ':memory:',
   }),
   logger: new PinoLogger({
     name: 'Mastra',
-    level: 'info',
+    level: process.env.LOG_LEVEL || 'info',
   }),
   telemetry: {
-    // Telemetry is deprecated and will be removed in the Nov 4th release
-    enabled: false, 
+    enabled: false,
   },
   observability: {
-    // Enables DefaultExporter and CloudExporter for AI tracing
-    default: { enabled: true }, 
+    default: { enabled: true },
+  },
+  bundler: {
+    externals: ['cron-parser'],
   },
 });
+
+// エージェントとメモリをエクスポート（Discord Bot側で使用）
+export { connpassAgent } from './agents/connpass-agent.js';
+export { memory } from './agents/connpass-agent.js';

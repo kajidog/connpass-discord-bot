@@ -117,3 +117,53 @@ export const DEFAULTS = {
   RANGE_DAYS: 14,
   ORDER: 'started_asc' as FeedOrder,
 } as const;
+
+// ============================================
+// AI Agent 関連の型定義
+// ============================================
+
+/**
+ * イベント要約キャッシュ
+ */
+export interface EventSummaryCache {
+  /** イベントID */
+  eventId: number;
+  /** イベントのupdatedAt（変更検知用） */
+  updatedAt: string;
+  /** AI生成要約 */
+  summary: string;
+  /** キャッシュ作成日時（ISO string） */
+  cachedAt: string;
+}
+
+/**
+ * イベント検索パラメータ
+ */
+export interface SearchEventsParams {
+  /** キーワード検索 */
+  keyword?: string;
+  /** AND検索キーワード */
+  keywordsAnd?: string[];
+  /** OR検索キーワード */
+  keywordsOr?: string[];
+  /** 都道府県 */
+  prefecture?: string;
+  /** 開始日（YYYYMMDD） */
+  ymdFrom?: string;
+  /** 終了日（YYYYMMDD） */
+  ymdTo?: string;
+  /** 主催者ニックネーム */
+  ownerNickname?: string;
+  /** 取得件数 */
+  count?: number;
+  /** ソート順 */
+  order?: FeedOrder;
+}
+
+/**
+ * 日付範囲
+ */
+export interface DateRange {
+  from: Date;
+  to: Date;
+}

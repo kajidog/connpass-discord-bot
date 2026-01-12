@@ -5,7 +5,10 @@ services:
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
       DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID}
       CONNPASS_API_KEY: ${CONNPASS_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ENABLE_AI_AGENT: ${ENABLE_AI_AGENT:-true}
       JOB_STORE_DIR: /data
+      AGENT_DATABASE_URL: file:/data/agent-memory.db
     volumes:
       - bot-data:/data
     restart: unless-stopped

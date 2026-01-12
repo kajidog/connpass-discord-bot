@@ -1,8 +1,9 @@
-import { Client, GatewayIntentBits, Events } from 'discord.js';
+import { Client, GatewayIntentBits, Events, Message } from 'discord.js';
 import { ConnpassClient } from '@kajidog/connpass-api-client';
 import {
   FileFeedStore,
   FileUserStore,
+  FileSummaryCacheStore,
   FeedExecutor,
   Scheduler,
 } from '@connpass-discord-bot/feed-worker';
@@ -22,6 +23,8 @@ import {
 } from './commands/handlers/user.js';
 import { handleToday } from './commands/handlers/today.js';
 import { handleHelp } from './commands/handlers/help.js';
+import { handleAgentMention, type AgentContext } from './agent/index.js';
+import { connpassAgent } from './agent/connpass-agent.js';
 
 // 環境変数チェック
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
@@ -38,9 +41,22 @@ if (!CONNPASS_API_KEY) {
   process.exit(1);
 }
 
+// AI機能フラグ
+const ENABLE_AI_AGENT = process.env.ENABLE_AI_AGENT !== 'false';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+if (ENABLE_AI_AGENT && !OPENAI_API_KEY) {
+  console.warn('[Bot] OPENAI_API_KEY is not set, AI agent will be disabled');
+}
+
 // クライアント初期化
 const discordClient = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [
+    GatewayIntentBits.Guilds,
+    // AIエージェント用：メッセージ内容を読むためのIntent
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
 const connpassClient = new ConnpassClient({
@@ -50,11 +66,20 @@ const connpassClient = new ConnpassClient({
 // ストア初期化
 const feedStore = new FileFeedStore(JOB_STORE_DIR);
 const userStore = new FileUserStore(JOB_STORE_DIR);
+const summaryCache = new FileSummaryCacheStore(JOB_STORE_DIR);
 
 // シンク・エグゼキュータ・スケジューラー初期化
 const sink = new DiscordSink(discordClient);
 const executor = new FeedExecutor(connpassClient, feedStore, sink);
 const scheduler = new Scheduler(feedStore, executor);
+
+// AIエージェントコンテキスト
+const agentContext: AgentContext = {
+  connpassClient,
+  feedStore,
+  userStore,
+  summaryCache,
+};
 
 // Discord準備完了
 discordClient.once(Events.ClientReady, async (c) => {
@@ -75,7 +100,7 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
 
     // ボタン
     if (interaction.isButton()) {
-      await handleButtonInteraction(interaction, connpassClient, userStore);
+      await handleButtonInteraction(interaction, connpassClient, userStore, summaryCache);
       return;
     }
 
@@ -145,6 +170,31 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 });
+
+// AIエージェントメンションハンドラー
+if (ENABLE_AI_AGENT && OPENAI_API_KEY) {
+  discordClient.on(Events.MessageCreate, async (message: Message) => {
+    // Botからのメッセージは無視
+    if (message.author.bot) return;
+
+    // メンションされていない場合は無視
+    if (!discordClient.user) return;
+    if (!message.mentions.has(discordClient.user)) return;
+
+    try {
+      await handleAgentMention(message, connpassAgent, agentContext);
+    } catch (error) {
+      console.error('[Agent] Error handling mention:', error);
+      try {
+        await message.reply('申し訳ありません。エラーが発生しました。');
+      } catch {
+        // 返信に失敗した場合は無視
+      }
+    }
+  });
+
+  console.log('[Bot] AI Agent enabled');
+}
 
 // グレースフルシャットダウン
 async function shutdown() {

@@ -6,8 +6,9 @@ import type {
 } from 'discord.js';
 import { EmbedBuilder, ChannelType } from 'discord.js';
 import type { ConnpassClient } from '@kajidog/connpass-api-client';
-import type { IUserStore, ConnpassEvent } from '@connpass-discord-bot/core';
+import type { IUserStore, ConnpassEvent, ISummaryCacheStore } from '@connpass-discord-bot/core';
 import { buildDetailEmbed } from '../embeds/detailEmbed.js';
+import { summarizeEventDetails } from '../agent/summarizer.js';
 
 /**
  * ボタンインタラクションハンドラー
@@ -15,7 +16,8 @@ import { buildDetailEmbed } from '../embeds/detailEmbed.js';
 export async function handleButtonInteraction(
   interaction: ButtonInteraction,
   client: ConnpassClient,
-  userStore: IUserStore
+  userStore: IUserStore,
+  summaryCache?: ISummaryCacheStore
 ): Promise<void> {
   const customId = interaction.customId;
 
@@ -35,7 +37,7 @@ export async function handleButtonInteraction(
 
   switch (action) {
     case 'detail':
-      await handleDetailButton(interaction, client, eventId);
+      await handleDetailButton(interaction, client, eventId, summaryCache);
       break;
     case 'speakers':
       await handleSpeakersButton(interaction, client, eventId);
@@ -57,7 +59,8 @@ export async function handleButtonInteraction(
 async function handleDetailButton(
   interaction: ButtonInteraction,
   client: ConnpassClient,
-  eventId: number
+  eventId: number,
+  summaryCache?: ISummaryCacheStore
 ): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
@@ -76,6 +79,25 @@ async function handleDetailButton(
     const thread = await getOrCreateThread(interaction);
     if (thread) {
       await thread.send({ embeds: [embed] });
+
+      // AI要約を生成して追加（OpenAI APIキーがある場合のみ）
+      if (process.env.OPENAI_API_KEY) {
+        try {
+          const summary = await summarizeEventDetails(event, summaryCache);
+          if (summary) {
+            const summaryEmbed = new EmbedBuilder()
+              .setTitle('📝 AI要約')
+              .setDescription(summary)
+              .setColor(0x10b981)
+              .setFooter({ text: 'GPT-4o-miniによる要約' });
+            await thread.send({ embeds: [summaryEmbed] });
+          }
+        } catch (err) {
+          console.error('[Detail] AI summary error:', err);
+          // 要約失敗は無視（詳細は表示済み）
+        }
+      }
+
       await interaction.editReply({ content: 'スレッドに詳細を投稿しました。' });
     } else {
       await interaction.editReply({ embeds: [embed] });

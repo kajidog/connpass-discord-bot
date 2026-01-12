@@ -17,12 +17,15 @@
     "node": ">=22.13.0"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^1.3.24",
+    "@connpass-discord-bot/core": "workspace:*",
+    "@kajidog/connpass-api-client": "^0.3.0",
     "@mastra/core": "^0.24.9",
     "@mastra/evals": "^0.14.4",
     "@mastra/libsql": "^0.16.4",
     "@mastra/loggers": "^0.10.19",
     "@mastra/memory": "^0.15.13",
-    "zod": "^4.3.5"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^25.0.6",
