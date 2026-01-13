@@ -56,6 +56,17 @@ export async function handleHelp(interaction: ChatInputCommandInteraction): Prom
         value: 'ニックネームの登録を解除',
       },
       {
+        name: '/connpass admin add',
+        value: [
+          '**管理者/BAN管理**',
+          '`add` - 管理者追加（管理者未登録時は誰でも実行可）',
+          '`remove` - 管理者削除',
+          '`ban` - ユーザーをBAN',
+          '`unban` - BAN解除',
+          '`list` - 管理者/BAN一覧',
+        ].join('\n'),
+      },
+      {
         name: '/connpass today',
         value: '登録したニックネームで今日参加予定のイベントを表示',
       },

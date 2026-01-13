@@ -72,7 +72,17 @@ pnpm --filter @connpass-discord-bot/discord-bot start
 | `/connpass model set` | チャンネルのAIモデル設定 |
 | `/connpass model status` | モデル設定確認 |
 | `/connpass model reset` | モデル設定リセット |
+| `/connpass admin add` | 管理者追加 |
+| `/connpass admin remove` | 管理者削除 |
+| `/connpass admin ban` | ユーザーをBAN |
+| `/connpass admin unban` | BAN解除 |
+| `/connpass admin list` | 管理者/BAN一覧 |
 | `/connpass today` | 今日のイベント |
+
+**権限メモ**
+
+- 管理者未登録のときだけ `/connpass admin add` は誰でも実行可能
+- BANされたユーザーはAI機能、モデル変更、Feed変更ができません
 
 ### フィードの規模フィルタ
 

@@ -6,9 +6,10 @@ import type {
 } from 'discord.js';
 import { EmbedBuilder, ChannelType } from 'discord.js';
 import type { ConnpassClient } from '@kajidog/connpass-api-client';
-import type { IUserStore, ConnpassEvent, ISummaryCacheStore, IChannelModelStore } from '@connpass-discord-bot/core';
+import type { IUserStore, ConnpassEvent, ISummaryCacheStore, IChannelModelStore, IBanStore } from '@connpass-discord-bot/core';
 import { buildDetailEmbed } from '../embeds/detailEmbed.js';
 import { summarizeEventDetails } from '../agent/summarizer.js';
+import { isBannedUser } from '../security/permissions.js';
 
 /**
  * ボタンインタラクションハンドラー
@@ -18,7 +19,8 @@ export async function handleButtonInteraction(
   client: ConnpassClient,
   userStore: IUserStore,
   summaryCache?: ISummaryCacheStore,
-  channelModelStore?: IChannelModelStore
+  channelModelStore?: IChannelModelStore,
+  banStore?: IBanStore
 ): Promise<void> {
   const customId = interaction.customId;
 
@@ -38,7 +40,14 @@ export async function handleButtonInteraction(
 
   switch (action) {
     case 'detail':
-      await handleDetailButton(interaction, client, eventId, summaryCache, channelModelStore);
+      await handleDetailButton(
+        interaction,
+        client,
+        eventId,
+        summaryCache,
+        channelModelStore,
+        banStore
+      );
       break;
     case 'speakers':
       await handleSpeakersButton(interaction, client, eventId);
@@ -62,7 +71,8 @@ async function handleDetailButton(
   client: ConnpassClient,
   eventId: number,
   summaryCache?: ISummaryCacheStore,
-  channelModelStore?: IChannelModelStore
+  channelModelStore?: IChannelModelStore,
+  banStore?: IBanStore
 ): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
@@ -82,8 +92,10 @@ async function handleDetailButton(
     if (thread) {
       await thread.send({ embeds: [embed] });
 
+      const isBanned = banStore ? await isBannedUser(banStore, interaction.user.id) : false;
+
       // AI要約を生成して追加
-      if (channelModelStore) {
+      if (channelModelStore && !isBanned) {
         try {
           const channelModelConfig = await channelModelStore.get(interaction.channelId);
           const summary = await summarizeEventDetails(event, summaryCache, channelModelConfig);
@@ -99,6 +111,9 @@ async function handleDetailButton(
           console.error('[Detail] AI summary error:', err);
           // 要約失敗は無視（詳細は表示済み）
         }
+      } else if (isBanned) {
+        await interaction.editReply({ content: 'スレッドに詳細を投稿しました。（BAN中のためAI要約は省略しました）' });
+        return;
       }
 
       await interaction.editReply({ content: 'スレッドに詳細を投稿しました。' });

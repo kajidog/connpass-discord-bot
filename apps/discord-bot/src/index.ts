@@ -3,6 +3,8 @@ import { ConnpassClient } from '@kajidog/connpass-api-client';
 import {
   FileFeedStore,
   FileUserStore,
+  FileAdminStore,
+  FileBanStore,
   FileSummaryCacheStore,
   FileChannelModelStore,
   FeedExecutor,
@@ -23,6 +25,7 @@ import {
   handleUserUnregister,
 } from './commands/handlers/user.js';
 import { handleModelCommand } from './commands/handlers/model.js';
+import { handleAdminCommand } from './commands/handlers/admin.js';
 import { handleToday } from './commands/handlers/today.js';
 import { handleHelp } from './commands/handlers/help.js';
 import { handleAgentMentionWithProgress, type AgentContext } from './agent/index.js';
@@ -69,6 +72,8 @@ const connpassClient = new ConnpassClient({
 // ストア初期化
 const feedStore = new FileFeedStore(JOB_STORE_DIR);
 const userStore = new FileUserStore(JOB_STORE_DIR);
+const adminStore = new FileAdminStore(JOB_STORE_DIR);
+const banStore = new FileBanStore(JOB_STORE_DIR);
 const summaryCache = new FileSummaryCacheStore(JOB_STORE_DIR);
 const channelModelStore = new FileChannelModelStore(JOB_STORE_DIR);
 
@@ -84,6 +89,7 @@ const agentContext: AgentContext = {
   userStore,
   summaryCache,
   channelModelStore,
+  banStore,
 };
 
 // Discord準備完了
@@ -105,7 +111,14 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
 
     // ボタン
     if (interaction.isButton()) {
-      await handleButtonInteraction(interaction, connpassClient, userStore, summaryCache, channelModelStore);
+      await handleButtonInteraction(
+        interaction,
+        connpassClient,
+        userStore,
+        summaryCache,
+        channelModelStore,
+        banStore
+      );
       return;
     }
 
@@ -120,16 +133,16 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
       if (group === 'feed') {
         switch (subcommand) {
           case 'set':
-            await handleFeedSet(interaction, feedStore, scheduler);
+            await handleFeedSet(interaction, feedStore, scheduler, banStore);
             break;
           case 'status':
             await handleFeedStatus(interaction, feedStore);
             break;
           case 'remove':
-            await handleFeedRemove(interaction, feedStore, scheduler);
+            await handleFeedRemove(interaction, feedStore, scheduler, banStore);
             break;
           case 'run':
-            await handleFeedRun(interaction, feedStore, executor);
+            await handleFeedRun(interaction, feedStore, executor, banStore);
             break;
         }
         return;
@@ -153,7 +166,13 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
 
       // /connpass model *
       if (group === 'model') {
-        await handleModelCommand(interaction, channelModelStore);
+        await handleModelCommand(interaction, channelModelStore, banStore);
+        return;
+      }
+
+      // /connpass admin *
+      if (group === 'admin') {
+        await handleAdminCommand(interaction, adminStore, banStore);
         return;
       }
 

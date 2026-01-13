@@ -160,6 +160,53 @@ export const connpassCommand = new SlashCommandBuilder()
       )
   )
 
+  // /connpass admin サブコマンドグループ
+  .addSubcommandGroup((group) =>
+    group
+      .setName('admin')
+      .setDescription('管理者とBANの管理')
+      .addSubcommand((sub) =>
+        sub
+          .setName('add')
+          .setDescription('管理者を追加')
+          .addUserOption((o) => o.setName('user').setDescription('追加するユーザー').setRequired(true))
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName('remove')
+          .setDescription('管理者を削除')
+          .addUserOption((o) => o.setName('user').setDescription('削除する管理者').setRequired(true))
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName('ban')
+          .setDescription('ユーザーをBAN')
+          .addUserOption((o) => o.setName('user').setDescription('BANするユーザー').setRequired(true))
+          .addStringOption((o) => o.setName('reason').setDescription('理由（任意）'))
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName('unban')
+          .setDescription('BANを解除')
+          .addUserOption((o) => o.setName('user').setDescription('解除するユーザー').setRequired(true))
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName('list')
+          .setDescription('管理者/バン一覧を表示')
+          .addStringOption((o) =>
+            o
+              .setName('type')
+              .setDescription('表示対象')
+              .addChoices(
+                { name: '管理者', value: 'admins' },
+                { name: 'バン', value: 'bans' },
+                { name: 'すべて', value: 'all' }
+              )
+          )
+      )
+  )
+
   // /connpass today
   .addSubcommand((sub) => sub.setName('today').setDescription('今日参加予定のイベントを表示'))
 

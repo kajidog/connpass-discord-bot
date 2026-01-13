@@ -1,25 +1,27 @@
 import type { ChatInputCommandInteraction } from 'discord.js';
-import type { IChannelModelStore, AIProvider, ModelConfig, ChannelModelConfig } from '@connpass-discord-bot/core';
+import type { IChannelModelStore, AIProvider, ModelConfig, ChannelModelConfig, IBanStore } from '@connpass-discord-bot/core';
 import { getAIConfig, validateModel } from '../../ai/index.js';
+import { isBannedUser } from '../../security/permissions.js';
 
 /**
  * /connpass model ハンドラー
  */
 export async function handleModelCommand(
   interaction: ChatInputCommandInteraction,
-  channelModelStore: IChannelModelStore
+  channelModelStore: IChannelModelStore,
+  banStore: IBanStore
 ): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
 
   switch (subcommand) {
     case 'set':
-      await handleModelSet(interaction, channelModelStore);
+      await handleModelSet(interaction, channelModelStore, banStore);
       break;
     case 'status':
       await handleModelStatus(interaction, channelModelStore);
       break;
     case 'reset':
-      await handleModelReset(interaction, channelModelStore);
+      await handleModelReset(interaction, channelModelStore, banStore);
       break;
     case 'list':
       await handleModelList(interaction);
@@ -34,8 +36,16 @@ export async function handleModelCommand(
  */
 async function handleModelSet(
   interaction: ChatInputCommandInteraction,
-  channelModelStore: IChannelModelStore
+  channelModelStore: IChannelModelStore,
+  banStore: IBanStore
 ): Promise<void> {
+  if (await isBannedUser(banStore, interaction.user.id)) {
+    await interaction.reply({
+      content: '⛔ あなたはBANされているため、モデル変更はできません。',
+      ephemeral: true,
+    });
+    return;
+  }
   const type = interaction.options.getString('type', true) as 'agent' | 'summarizer';
   const provider = interaction.options.getString('provider', true) as AIProvider;
   const model = interaction.options.getString('model', true);
@@ -135,8 +145,16 @@ async function handleModelList(
  */
 async function handleModelReset(
   interaction: ChatInputCommandInteraction,
-  channelModelStore: IChannelModelStore
+  channelModelStore: IChannelModelStore,
+  banStore: IBanStore
 ): Promise<void> {
+  if (await isBannedUser(banStore, interaction.user.id)) {
+    await interaction.reply({
+      content: '⛔ あなたはBANされているため、モデル変更はできません。',
+      ephemeral: true,
+    });
+    return;
+  }
   const channelId = interaction.channelId;
   const type = interaction.options.getString('type') as 'agent' | 'summarizer' | null;
 
@@ -180,4 +198,3 @@ async function handleModelReset(
     ephemeral: true,
   });
 }
-
