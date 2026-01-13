@@ -12,13 +12,20 @@ import type {
   ISummaryCacheStore,
   Feed,
 } from '@connpass-discord-bot/core';
-import { ORDER_MAP, DEFAULTS } from '@connpass-discord-bot/core';
+import {
+  DEFAULTS,
+  ORDER_MAP,
+  getAccessControlConfigFromEnv,
+  isAccessAllowed,
+} from '@connpass-discord-bot/core';
 import { CronExpressionParser } from 'cron-parser';
 import { ProgressEmbed } from './progress-embed.js';
 
 // ============================================
 // ツール定義
 // ============================================
+
+const feedAccessConfig = getAccessControlConfigFromEnv('FEED');
 
 const searchEventsTool = createTool({
   id: 'search-events',
@@ -316,10 +323,28 @@ const manageFeedTool = createTool({
     progress?.addToolCall('manageFeed', context);
 
     const feedStore = runtimeContext?.get('feedStore') as IFeedStore | undefined;
+    const discordUserId = runtimeContext?.get('discordUserId') as string | undefined;
+    const discordRoleIds = (runtimeContext?.get('discordRoleIds') as string[] | undefined) ?? [];
     const currentChannelId = runtimeContext?.get('channelId') as string | undefined;
 
     if (!feedStore) {
       return { success: false, feed: null, message: 'ストア未設定' };
+    }
+
+    const hasFeedAccessRules =
+      feedAccessConfig.allowedUserIds.length > 0 ||
+      feedAccessConfig.allowedRoleIds.length > 0 ||
+      feedAccessConfig.blockedUserIds.length > 0 ||
+      feedAccessConfig.blockedRoleIds.length > 0;
+    if (hasFeedAccessRules) {
+      if (!discordUserId) {
+        progress?.addToolResult('manageFeed', false, 'ユーザー不明');
+        return { success: false, feed: null, message: 'ユーザー情報が取得できません' };
+      }
+      if (!isAccessAllowed(discordUserId, discordRoleIds, feedAccessConfig)) {
+        progress?.addToolResult('manageFeed', false, '権限なし');
+        return { success: false, feed: null, message: 'フィード操作は許可されていません' };
+      }
     }
 
     const channelId = context.channelId || currentChannelId;

@@ -1,7 +1,11 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import type { IFeedStore, FeedConfig, Feed } from '@connpass-discord-bot/core';
-import { DEFAULTS } from '@connpass-discord-bot/core';
+import {
+  DEFAULTS,
+  getAccessControlConfigFromEnv,
+  isAccessAllowed,
+} from '@connpass-discord-bot/core';
 import { CronExpressionParser } from 'cron-parser';
 
 /**
@@ -93,9 +97,16 @@ export const manageFeedTool = createTool({
     const feedStore = runtimeContext?.get('feedStore') as
       | IFeedStore
       | undefined;
+    const discordUserId = runtimeContext?.get('discordUserId') as
+      | string
+      | undefined;
+    const discordRoleIds = (runtimeContext?.get('discordRoleIds') as
+      | string[]
+      | undefined) ?? [];
     const currentChannelId = runtimeContext?.get('channelId') as
       | string
       | undefined;
+    const feedAccessConfig = getAccessControlConfigFromEnv('FEED');
 
     if (!feedStore) {
       return {
@@ -103,6 +114,28 @@ export const manageFeedTool = createTool({
         feed: null,
         message: 'フィードストアが設定されていません',
       };
+    }
+
+    const hasFeedAccessRules =
+      feedAccessConfig.allowedUserIds.length > 0 ||
+      feedAccessConfig.allowedRoleIds.length > 0 ||
+      feedAccessConfig.blockedUserIds.length > 0 ||
+      feedAccessConfig.blockedRoleIds.length > 0;
+    if (hasFeedAccessRules) {
+      if (!discordUserId) {
+        return {
+          success: false,
+          feed: null,
+          message: 'ユーザー情報が取得できません',
+        };
+      }
+      if (!isAccessAllowed(discordUserId, discordRoleIds, feedAccessConfig)) {
+        return {
+          success: false,
+          feed: null,
+          message: 'フィード操作は許可されていません',
+        };
+      }
     }
 
     const channelId = context.channelId || currentChannelId;

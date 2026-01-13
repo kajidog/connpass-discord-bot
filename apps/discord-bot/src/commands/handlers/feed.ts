@@ -1,6 +1,10 @@
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { Feed, FeedConfig, IFeedStore } from '@connpass-discord-bot/core';
-import { DEFAULTS } from '@connpass-discord-bot/core';
+import {
+  DEFAULTS,
+  getAccessControlConfigFromEnv,
+  isAccessAllowed,
+} from '@connpass-discord-bot/core';
 import type { Scheduler, FeedExecutor } from '@connpass-discord-bot/feed-worker';
 import { CronExpressionParser } from 'cron-parser';
 import { getPrefectureName } from '../../data/prefectures.js';
@@ -27,6 +31,34 @@ const SCHEDULE_LABELS: Record<string, string> = {
   '0 9 * * 1': '毎週月曜 9:00',
   '0 18 * * 5': '毎週金曜 18:00',
 };
+
+const feedAccessConfig = getAccessControlConfigFromEnv('FEED');
+
+function getRoleIdsFromInteraction(interaction: ChatInputCommandInteraction): string[] {
+  if (!interaction.inGuild()) return [];
+  const member = interaction.member;
+  if (!member) return [];
+  const roles = (member as { roles?: { cache?: Map<string, { id: string }> } | string[] })
+    .roles;
+  if (!roles) return [];
+  if (Array.isArray(roles)) return roles;
+  if ('cache' in roles && roles.cache) {
+    return Array.from(roles.cache.keys());
+  }
+  return [];
+}
+
+async function ensureFeedAccess(interaction: ChatInputCommandInteraction): Promise<boolean> {
+  const roleIds = getRoleIdsFromInteraction(interaction);
+  const allowed = isAccessAllowed(interaction.user.id, roleIds, feedAccessConfig);
+  if (!allowed) {
+    await interaction.reply({
+      content: 'このコマンドを実行する権限がありません。',
+      ephemeral: true,
+    });
+  }
+  return allowed;
+}
 
 function formatSchedule(schedule: string): string {
   return SCHEDULE_LABELS[schedule] ?? schedule;
@@ -78,6 +110,9 @@ export async function handleFeedSet(
   store: IFeedStore,
   scheduler: Scheduler
 ): Promise<void> {
+  if (!(await ensureFeedAccess(interaction))) {
+    return;
+  }
   const channelId = interaction.channelId;
 
   // オプション取得
@@ -179,6 +214,9 @@ export async function handleFeedStatus(
   interaction: ChatInputCommandInteraction,
   store: IFeedStore
 ): Promise<void> {
+  if (!(await ensureFeedAccess(interaction))) {
+    return;
+  }
   const channelId = interaction.channelId;
   const feed = await store.get(channelId);
 
@@ -224,6 +262,9 @@ export async function handleFeedRemove(
   store: IFeedStore,
   scheduler: Scheduler
 ): Promise<void> {
+  if (!(await ensureFeedAccess(interaction))) {
+    return;
+  }
   const channelId = interaction.channelId;
   const feed = await store.get(channelId);
 
@@ -252,6 +293,9 @@ export async function handleFeedRun(
   store: IFeedStore,
   executor: FeedExecutor
 ): Promise<void> {
+  if (!(await ensureFeedAccess(interaction))) {
+    return;
+  }
   const channelId = interaction.channelId;
   const feed = await store.get(channelId);
 

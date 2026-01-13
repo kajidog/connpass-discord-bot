@@ -39,6 +39,25 @@ JOB_STORE_DIR=./data
 ENABLE_AI_AGENT=true
 ```
 
+#### アクセス制御（任意）
+
+カンマ区切りでユーザーID/ロールIDを指定すると、Feed設定やAIエージェント利用を制限できます。
+ホワイトリスト（ALLOWED）を設定した場合は一致したユーザー/ロールのみ許可されます。ブラックリスト（BLOCKED）は常に拒否が優先されます。
+
+```env
+# Feed操作の制限
+FEED_ALLOWED_USER_IDS=123,456
+FEED_ALLOWED_ROLE_IDS=789,101112
+FEED_BLOCKED_USER_IDS=
+FEED_BLOCKED_ROLE_IDS=
+
+# AIエージェント利用の制限
+AI_AGENT_ALLOWED_USER_IDS=
+AI_AGENT_ALLOWED_ROLE_IDS=
+AI_AGENT_BLOCKED_USER_IDS=
+AI_AGENT_BLOCKED_ROLE_IDS=
+```
+
 ### 3. コマンド登録
 
 ```bash

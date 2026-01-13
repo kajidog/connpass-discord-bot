@@ -2,7 +2,13 @@ import { Message, TextChannel, ThreadChannel, ActionRow, MessageActionRowCompone
 import { Agent } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import type { ConnpassClient } from '@kajidog/connpass-api-client';
-import type { IFeedStore, IUserStore, ISummaryCacheStore } from '@connpass-discord-bot/core';
+import {
+  getAccessControlConfigFromEnv,
+  isAccessAllowed,
+  type IFeedStore,
+  type IUserStore,
+  type ISummaryCacheStore,
+} from '@connpass-discord-bot/core';
 import { ProgressEmbed } from './progress-embed.js';
 
 export interface AgentContext {
@@ -10,6 +16,22 @@ export interface AgentContext {
   feedStore: IFeedStore;
   userStore: IUserStore;
   summaryCache?: ISummaryCacheStore;
+}
+
+const aiAgentAccessConfig = getAccessControlConfigFromEnv('AI_AGENT');
+
+function getRoleIdsFromMessage(message: Message): string[] {
+  if (!message.member) return [];
+  return Array.from(message.member.roles.cache.keys());
+}
+
+async function ensureAgentAccess(message: Message): Promise<boolean> {
+  const roleIds = getRoleIdsFromMessage(message);
+  const allowed = isAccessAllowed(message.author.id, roleIds, aiAgentAccessConfig);
+  if (!allowed) {
+    await message.reply('このAIエージェントを利用する権限がありません。');
+  }
+  return allowed;
 }
 
 /**
@@ -20,6 +42,9 @@ export async function handleAgentMention(
   agent: Agent,
   context: AgentContext
 ): Promise<void> {
+  if (!(await ensureAgentAccess(message))) {
+    return;
+  }
   const content = message.content
     .replace(/<@!?\d+>/g, '')
     .trim();
@@ -95,6 +120,7 @@ export async function handleAgentMention(
     runtimeContext.set('userStore', context.userStore);
     runtimeContext.set('summaryCache', context.summaryCache);
     runtimeContext.set('discordUserId', message.author.id);
+    runtimeContext.set('discordRoleIds', getRoleIdsFromMessage(message));
     runtimeContext.set('channelId', message.channelId);
     runtimeContext.set('guildId', message.guildId);
     if (contextInfo) {
@@ -141,6 +167,9 @@ export async function handleAgentMentionStream(
   agent: Agent,
   context: AgentContext
 ): Promise<void> {
+  if (!(await ensureAgentAccess(message))) {
+    return;
+  }
   const content = message.content
     .replace(/<@!?\d+>/g, '')
     .trim();
@@ -211,6 +240,7 @@ export async function handleAgentMentionStream(
     runtimeContext.set('userStore', context.userStore);
     runtimeContext.set('summaryCache', context.summaryCache);
     runtimeContext.set('discordUserId', message.author.id);
+    runtimeContext.set('discordRoleIds', getRoleIdsFromMessage(message));
     runtimeContext.set('channelId', message.channelId);
     runtimeContext.set('guildId', message.guildId);
     if (contextInfo) {
@@ -320,6 +350,9 @@ export async function handleAgentMentionWithProgress(
   agent: Agent,
   context: AgentContext
 ): Promise<void> {
+  if (!(await ensureAgentAccess(message))) {
+    return;
+  }
   const content = message.content
     .replace(/<@!?\d+>/g, '')
     .trim();
@@ -395,6 +428,7 @@ export async function handleAgentMentionWithProgress(
     runtimeContext.set('userStore', context.userStore);
     runtimeContext.set('summaryCache', context.summaryCache);
     runtimeContext.set('discordUserId', message.author.id);
+    runtimeContext.set('discordRoleIds', getRoleIdsFromMessage(message));
     runtimeContext.set('channelId', message.channelId);
     runtimeContext.set('guildId', message.guildId);
     if (contextInfo) {

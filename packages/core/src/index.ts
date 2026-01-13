@@ -19,3 +19,10 @@ export { ORDER_MAP, DEFAULTS } from './domain/types.js';
 export type { IFeedStore } from './repositories/IFeedStore.js';
 export type { IUserStore } from './repositories/IUserStore.js';
 export type { ISummaryCacheStore } from './repositories/ISummaryCacheStore.js';
+
+export type { AccessControlConfig } from './utils/access-control.js';
+export {
+  getAccessControlConfigFromEnv,
+  isAccessAllowed,
+  parseIdList,
+} from './utils/access-control.js';
