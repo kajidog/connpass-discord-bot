@@ -128,7 +128,8 @@ export class FeedExecutor {
     return events.filter((event) => {
       const participantOk =
         minParticipantCount !== undefined && event.participantCount >= minParticipantCount;
-      const limitValue = event.limit ?? 0;
+      const limitValue =
+        event.limit === undefined || event.limit === 0 ? Number.POSITIVE_INFINITY : event.limit;
       const limitOk = minLimit !== undefined && limitValue >= minLimit;
 
       return participantOk || limitOk;
