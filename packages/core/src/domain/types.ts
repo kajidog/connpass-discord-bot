@@ -69,6 +69,32 @@ export interface User {
 }
 
 /**
+ * 管理者ユーザー
+ */
+export interface AdminUser {
+  /** Discord ユーザーID */
+  discordUserId: string;
+  /** 追加日時（ISO string） */
+  addedAt: string;
+  /** 追加者（Discord ユーザーID） */
+  addedBy?: string;
+}
+
+/**
+ * バンされたユーザー
+ */
+export interface BannedUser {
+  /** Discord ユーザーID */
+  discordUserId: string;
+  /** バン日時（ISO string） */
+  bannedAt: string;
+  /** バン実行者（Discord ユーザーID） */
+  bannedBy?: string;
+  /** 理由 */
+  reason?: string;
+}
+
+/**
  * 新着イベント通知ペイロード
  */
 export interface NewEventsPayload {

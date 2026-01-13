@@ -1,11 +1,12 @@
 import { Message, TextChannel, ThreadChannel, ActionRow, MessageActionRowComponent, ChannelType, TextBasedChannel } from 'discord.js';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import type { ConnpassClient } from '@kajidog/connpass-api-client';
-import type { IFeedStore, IUserStore, ISummaryCacheStore, IChannelModelStore } from '@connpass-discord-bot/core';
+import type { IFeedStore, IUserStore, ISummaryCacheStore, IChannelModelStore, IBanStore } from '@connpass-discord-bot/core';
 import { setMessageCache, clearMessageCache } from './conversation-tools.js';
 import { ProgressEmbed } from './progress-embed.js';
 import { createConnpassAgent } from './connpass-agent.js';
 import { getAIConfig, getModelConfigForChannel, hasApiKey } from '../ai/index.js';
+import { isBannedUser } from '../security/permissions.js';
 
 export interface AgentContext {
   connpassClient: ConnpassClient;
@@ -13,6 +14,7 @@ export interface AgentContext {
   userStore: IUserStore;
   summaryCache?: ISummaryCacheStore;
   channelModelStore: IChannelModelStore;
+  banStore: IBanStore;
 }
 
 /**
@@ -34,6 +36,10 @@ export async function handleAgentMention(
   message: Message,
   context: AgentContext
 ): Promise<void> {
+  if (await isBannedUser(context.banStore, message.author.id)) {
+    await message.reply('⛔ あなたはBANされているため、AI機能は使用できません。');
+    return;
+  }
   // チャンネル設定を取得（スレッドの場合は親チャンネル）
   const configChannelId = getChannelIdForConfig(message);
   const channelModelConfig = await context.channelModelStore.get(configChannelId);
@@ -168,6 +174,10 @@ export async function handleAgentMentionStream(
   message: Message,
   context: AgentContext
 ): Promise<void> {
+  if (await isBannedUser(context.banStore, message.author.id)) {
+    await message.reply('⛔ あなたはBANされているため、AI機能は使用できません。');
+    return;
+  }
   // チャンネル設定を取得（スレッドの場合は親チャンネル）
   const configChannelId = getChannelIdForConfig(message);
   const channelModelConfig = await context.channelModelStore.get(configChannelId);
@@ -360,6 +370,10 @@ export async function handleAgentMentionWithProgress(
   message: Message,
   context: AgentContext
 ): Promise<void> {
+  if (await isBannedUser(context.banStore, message.author.id)) {
+    await message.reply('⛔ あなたはBANされているため、AI機能は使用できません。');
+    return;
+  }
   // チャンネル設定を取得（スレッドの場合は親チャンネル）
   const configChannelId = getChannelIdForConfig(message);
   const channelModelConfig = await context.channelModelStore.get(configChannelId);

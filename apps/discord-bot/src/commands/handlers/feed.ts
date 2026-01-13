@@ -1,9 +1,10 @@
 import type { ChatInputCommandInteraction } from 'discord.js';
-import type { Feed, FeedConfig, IFeedStore } from '@connpass-discord-bot/core';
+import type { Feed, FeedConfig, IFeedStore, IBanStore } from '@connpass-discord-bot/core';
 import { DEFAULTS } from '@connpass-discord-bot/core';
 import type { Scheduler, FeedExecutor } from '@connpass-discord-bot/feed-worker';
 import { CronExpressionParser } from 'cron-parser';
 import { getPrefectureName } from '../../data/prefectures.js';
+import { isBannedUser } from '../../security/permissions.js';
 
 /**
  * キーワード文字列をパース（カンマ/スペース区切り）
@@ -76,8 +77,16 @@ function validateCron(schedule: string): { valid: boolean; error?: string } {
 export async function handleFeedSet(
   interaction: ChatInputCommandInteraction,
   store: IFeedStore,
-  scheduler: Scheduler
+  scheduler: Scheduler,
+  banStore: IBanStore
 ): Promise<void> {
+  if (await isBannedUser(banStore, interaction.user.id)) {
+    await interaction.reply({
+      content: '⛔ あなたはBANされているため、Feedの変更はできません。',
+      ephemeral: true,
+    });
+    return;
+  }
   const channelId = interaction.channelId;
 
   // オプション取得
@@ -222,8 +231,16 @@ export async function handleFeedStatus(
 export async function handleFeedRemove(
   interaction: ChatInputCommandInteraction,
   store: IFeedStore,
-  scheduler: Scheduler
+  scheduler: Scheduler,
+  banStore: IBanStore
 ): Promise<void> {
+  if (await isBannedUser(banStore, interaction.user.id)) {
+    await interaction.reply({
+      content: '⛔ あなたはBANされているため、Feedの変更はできません。',
+      ephemeral: true,
+    });
+    return;
+  }
   const channelId = interaction.channelId;
   const feed = await store.get(channelId);
 
@@ -250,8 +267,16 @@ export async function handleFeedRemove(
 export async function handleFeedRun(
   interaction: ChatInputCommandInteraction,
   store: IFeedStore,
-  executor: FeedExecutor
+  executor: FeedExecutor,
+  banStore: IBanStore
 ): Promise<void> {
+  if (await isBannedUser(banStore, interaction.user.id)) {
+    await interaction.reply({
+      content: '⛔ あなたはBANされているため、Feedの変更はできません。',
+      ephemeral: true,
+    });
+    return;
+  }
   const channelId = interaction.channelId;
   const feed = await store.get(channelId);
 
