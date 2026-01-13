@@ -291,6 +291,8 @@ const manageFeedTool = createTool({
       location: z.array(z.string()).optional(),
       hashtag: z.string().optional(),
       ownerNickname: z.string().optional(),
+      minParticipantCount: z.number().optional(),
+      minLimit: z.number().optional(),
     }).optional(),
   }),
   outputSchema: z.object({
@@ -303,6 +305,8 @@ const manageFeedTool = createTool({
       keywordsOr: z.array(z.string()).optional(),
       location: z.array(z.string()).optional(),
       hashtag: z.string().optional(),
+      minParticipantCount: z.number().optional(),
+      minLimit: z.number().optional(),
       nextRunAt: z.number().optional(),
     }).nullable(),
     message: z.string(),
@@ -362,6 +366,8 @@ const manageFeedTool = createTool({
               location: context.config.location,
               hashtag: context.config.hashtag,
               ownerNickname: context.config.ownerNickname,
+              minParticipantCount: context.config.minParticipantCount,
+              minLimit: context.config.minLimit,
             },
             state: { sentEvents: {}, nextRunAt: nextRun.getTime() },
           };
@@ -386,6 +392,12 @@ const manageFeedTool = createTool({
           if (context.config?.keywordsOr) feed.config.keywordsOr = context.config.keywordsOr;
           if (context.config?.location) feed.config.location = context.config.location;
           if (context.config?.hashtag) feed.config.hashtag = context.config.hashtag;
+          if (context.config?.minParticipantCount !== undefined) {
+            feed.config.minParticipantCount = context.config.minParticipantCount;
+          }
+          if (context.config?.minLimit !== undefined) {
+            feed.config.minLimit = context.config.minLimit;
+          }
           await feedStore.save(feed);
           progress?.addToolResult('manageFeed', true, '更新完了');
           return { success: true, feed: formatFeed(feed), message: '更新しました' };
@@ -417,6 +429,8 @@ function formatFeed(feed: Feed) {
     keywordsOr: feed.config.keywordsOr,
     location: feed.config.location,
     hashtag: feed.config.hashtag,
+    minParticipantCount: feed.config.minParticipantCount,
+    minLimit: feed.config.minLimit,
     nextRunAt: feed.state.nextRunAt,
   };
 }

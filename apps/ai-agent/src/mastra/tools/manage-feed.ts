@@ -52,6 +52,18 @@ export const manageFeedTool = createTool({
           .describe('都道府県フィルタ'),
         hashtag: z.string().optional().describe('ハッシュタグフィルタ'),
         ownerNickname: z.string().optional().describe('主催者ニックネーム'),
+        minParticipantCount: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe('参加人数の下限'),
+        minLimit: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe('募集人数の下限'),
       })
       .optional()
       .describe('フィード設定（create/update時に使用）'),
@@ -69,6 +81,8 @@ export const manageFeedTool = createTool({
         location: z.array(z.string()).optional(),
         hashtag: z.string().optional(),
         ownerNickname: z.string().optional(),
+        minParticipantCount: z.number().optional(),
+        minLimit: z.number().optional(),
         lastRunAt: z.number().optional(),
         nextRunAt: z.number().optional(),
       })
@@ -160,6 +174,8 @@ export const manageFeedTool = createTool({
               location: context.config.location,
               hashtag: context.config.hashtag,
               ownerNickname: context.config.ownerNickname,
+              minParticipantCount: context.config.minParticipantCount,
+              minLimit: context.config.minLimit,
             },
             state: {
               sentEvents: {},
@@ -223,6 +239,12 @@ export const manageFeedTool = createTool({
           }
           if (context.config?.ownerNickname !== undefined) {
             feed.config.ownerNickname = context.config.ownerNickname;
+          }
+          if (context.config?.minParticipantCount !== undefined) {
+            feed.config.minParticipantCount = context.config.minParticipantCount;
+          }
+          if (context.config?.minLimit !== undefined) {
+            feed.config.minLimit = context.config.minLimit;
           }
 
           await feedStore.save(feed);
@@ -301,6 +323,8 @@ function formatFeedResponse(feed: Feed) {
     location: feed.config.location,
     hashtag: feed.config.hashtag,
     ownerNickname: feed.config.ownerNickname,
+    minParticipantCount: feed.config.minParticipantCount,
+    minLimit: feed.config.minLimit,
     lastRunAt: feed.state.lastRunAt,
     nextRunAt: feed.state.nextRunAt,
   };

@@ -45,6 +45,9 @@ export class FeedExecutor {
         events = this.filterByHashtag(events, feed.config.hashtag);
       }
 
+      // 規模フィルタ（参加人数・募集人数）
+      events = this.filterByMinimumCounts(events, feed);
+
       // 新着イベントを判定
       const newEvents = this.filterNewEvents(events, feed);
 
@@ -114,6 +117,22 @@ export class FeedExecutor {
     return events.filter(
       (e) => e.hashTag?.toLowerCase().replace(/^#/, '') === normalized
     );
+  }
+
+  private filterByMinimumCounts(events: ConnpassEvent[], feed: Feed): ConnpassEvent[] {
+    const { minParticipantCount, minLimit } = feed.config;
+    if (minParticipantCount === undefined && minLimit === undefined) {
+      return events;
+    }
+
+    return events.filter((event) => {
+      const participantOk =
+        minParticipantCount !== undefined && event.participantCount >= minParticipantCount;
+      const limitValue = event.limit ?? 0;
+      const limitOk = minLimit !== undefined && limitValue >= minLimit;
+
+      return participantOk || limitOk;
+    });
   }
 
   private filterNewEvents(events: ConnpassEvent[], feed: Feed): ConnpassEvent[] {

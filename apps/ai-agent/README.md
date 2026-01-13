@@ -143,6 +143,18 @@ Connpass APIでイベントを検索
 | channelId | string? | チャンネルID |
 | config | object? | フィード設定 |
 
+`config` フィールドで指定できる項目:
+
+- `schedule`: cron式スケジュール
+- `rangeDays`: 検索範囲日数
+- `keywordsAnd`: AND検索キーワード
+- `keywordsOr`: OR検索キーワード
+- `location`: 都道府県フィルタ
+- `hashtag`: ハッシュタグ
+- `ownerNickname`: 主催者ニックネーム
+- `minParticipantCount`: 参加人数の下限
+- `minLimit`: 募集人数の下限
+
 ## Discord Bot連携
 
 Discord Botでは、このエージェントをメンションハンドラーで使用します。

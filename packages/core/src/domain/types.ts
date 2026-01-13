@@ -22,6 +22,10 @@ export interface FeedConfig {
   ownerNickname?: string;
   /** ソート順 */
   order?: FeedOrder;
+  /** 参加者数の下限（この人数以上のイベントのみ通知） */
+  minParticipantCount?: number;
+  /** 募集人数の下限（この人数以上のイベントのみ通知） */
+  minLimit?: number;
   /** AI機能を使用するか（後で実装） */
   useAi?: boolean;
 }
