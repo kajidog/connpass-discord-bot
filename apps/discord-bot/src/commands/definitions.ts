@@ -104,6 +104,62 @@ export const connpassCommand = new SlashCommandBuilder()
       .addSubcommand((sub) => sub.setName('unregister').setDescription('ニックネーム登録を解除'))
   )
 
+  // /connpass model サブコマンドグループ
+  .addSubcommandGroup((group) =>
+    group
+      .setName('model')
+      .setDescription('このチャンネルのAIモデル設定を管理')
+      .addSubcommand((sub) =>
+        sub
+          .setName('set')
+          .setDescription('使用するモデルを設定')
+          .addStringOption((o) =>
+            o
+              .setName('type')
+              .setDescription('モデルの種類')
+              .setRequired(true)
+              .addChoices(
+                { name: 'エージェント（会話）', value: 'agent' },
+                { name: '要約', value: 'summarizer' }
+              )
+          )
+          .addStringOption((o) =>
+            o
+              .setName('provider')
+              .setDescription('AIプロバイダー')
+              .setRequired(true)
+              .addChoices(
+                { name: 'OpenAI', value: 'openai' },
+                { name: 'Anthropic (Claude)', value: 'anthropic' },
+                { name: 'Google (Gemini)', value: 'google' }
+              )
+          )
+          .addStringOption((o) =>
+            o
+              .setName('model')
+              .setDescription('モデル名（例: gpt-4o-mini）')
+              .setRequired(true)
+              .setAutocomplete(true)
+          )
+      )
+      .addSubcommand((sub) => sub.setName('status').setDescription('現在のモデル設定を表示'))
+      .addSubcommand((sub) => sub.setName('list').setDescription('使用可能なモデル一覧を表示'))
+      .addSubcommand((sub) =>
+        sub
+          .setName('reset')
+          .setDescription('このチャンネルのモデル設定をリセット（グローバル設定を使用）')
+          .addStringOption((o) =>
+            o
+              .setName('type')
+              .setDescription('リセットするモデルの種類（未指定の場合は全てリセット）')
+              .addChoices(
+                { name: 'エージェント（会話）', value: 'agent' },
+                { name: '要約', value: 'summarizer' }
+              )
+          )
+      )
+  )
+
   // /connpass today
   .addSubcommand((sub) => sub.setName('today').setDescription('今日参加予定のイベントを表示'))
 

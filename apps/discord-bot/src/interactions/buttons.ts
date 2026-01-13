@@ -6,7 +6,7 @@ import type {
 } from 'discord.js';
 import { EmbedBuilder, ChannelType } from 'discord.js';
 import type { ConnpassClient } from '@kajidog/connpass-api-client';
-import type { IUserStore, ConnpassEvent, ISummaryCacheStore } from '@connpass-discord-bot/core';
+import type { IUserStore, ConnpassEvent, ISummaryCacheStore, IChannelModelStore } from '@connpass-discord-bot/core';
 import { buildDetailEmbed } from '../embeds/detailEmbed.js';
 import { summarizeEventDetails } from '../agent/summarizer.js';
 
@@ -17,7 +17,8 @@ export async function handleButtonInteraction(
   interaction: ButtonInteraction,
   client: ConnpassClient,
   userStore: IUserStore,
-  summaryCache?: ISummaryCacheStore
+  summaryCache?: ISummaryCacheStore,
+  channelModelStore?: IChannelModelStore
 ): Promise<void> {
   const customId = interaction.customId;
 
@@ -37,7 +38,7 @@ export async function handleButtonInteraction(
 
   switch (action) {
     case 'detail':
-      await handleDetailButton(interaction, client, eventId, summaryCache);
+      await handleDetailButton(interaction, client, eventId, summaryCache, channelModelStore);
       break;
     case 'speakers':
       await handleSpeakersButton(interaction, client, eventId);
@@ -60,7 +61,8 @@ async function handleDetailButton(
   interaction: ButtonInteraction,
   client: ConnpassClient,
   eventId: number,
-  summaryCache?: ISummaryCacheStore
+  summaryCache?: ISummaryCacheStore,
+  channelModelStore?: IChannelModelStore
 ): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
@@ -80,16 +82,17 @@ async function handleDetailButton(
     if (thread) {
       await thread.send({ embeds: [embed] });
 
-      // AI要約を生成して追加（OpenAI APIキーがある場合のみ）
-      if (process.env.OPENAI_API_KEY) {
+      // AI要約を生成して追加
+      if (channelModelStore) {
         try {
-          const summary = await summarizeEventDetails(event, summaryCache);
+          const channelModelConfig = await channelModelStore.get(interaction.channelId);
+          const summary = await summarizeEventDetails(event, summaryCache, channelModelConfig);
           if (summary) {
             const summaryEmbed = new EmbedBuilder()
               .setTitle('📝 AI要約')
               .setDescription(summary)
               .setColor(0x10b981)
-              .setFooter({ text: 'GPT-4o-miniによる要約' });
+              .setFooter({ text: 'AIによる要約' });
             await thread.send({ embeds: [summaryEmbed] });
           }
         } catch (err) {

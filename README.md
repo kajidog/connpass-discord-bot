@@ -31,8 +31,10 @@ DISCORD_APPLICATION_ID=your_application_id
 # Connpass API
 CONNPASS_API_KEY=your_connpass_api_key
 
-# OpenAI（AIアシスタント機能を使う場合）
+# AI Provider API Keys（使用するプロバイダーのみ設定）
 OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_GENERATIVE_AI_API_KEY=...
 
 # オプション
 JOB_STORE_DIR=./data
@@ -67,6 +69,9 @@ pnpm --filter @connpass-discord-bot/discord-bot start
 | `/connpass feed remove` | フィード削除 |
 | `/connpass feed run` | 手動実行 |
 | `/connpass user register` | ニックネーム登録 |
+| `/connpass model set` | チャンネルのAIモデル設定 |
+| `/connpass model status` | モデル設定確認 |
+| `/connpass model reset` | モデル設定リセット |
 | `/connpass today` | 今日のイベント |
 
 ### フィードの規模フィルタ
@@ -86,6 +91,62 @@ Botにメンションして質問：
 @Bot Feedの設定して
 ```
 
+**💡 会話のコンテキストについて**
+
+- **イベント情報の保持**: スレッドの元となったイベント詳細を常に把握しています。
+- **直近の会話履歴**: 直近のメッセージを認識して回答します。
+- **履歴の自動取得**: 文脈が不足している場合、AIが必要に応じて過去の会話ログを自動的に参照します。
+
+## AIモデル設定
+
+AIモデルはチャンネルごとに設定可能です。OpenAI、Claude、Geminiに対応しています。
+
+### グローバル設定（デフォルト）
+
+`apps/discord-bot/config/ai-models.json` でデフォルトモデルを設定：
+
+```json
+{
+  "agent": {
+    "provider": "openai",
+    "model": "gpt-4o-mini"
+  },
+  "summarizer": {
+    "provider": "openai",
+    "model": "gpt-4o-mini"
+  },
+  "allowedModels": {
+    "openai": ["gpt-4o-mini"],
+    "anthropic": ["claude-4-5-haiku"],
+    "google": ["gemini-2.5-flash"]
+  }
+}
+```
+
+- `agent`: AIアシスタント（会話）で使用するモデル
+- `summarizer`: イベント要約で使用するモデル
+- `allowedModels`: 使用可能なモデルのホワイトリスト
+
+### チャンネルごとの設定
+
+`/connpass model set` コマンドでチャンネルごとにモデルを設定できます：
+
+```
+/connpass model set type:エージェント（会話） provider:anthropic model:claude-4-5-haiku
+/connpass model set type:要約 provider:openai model:gpt-4o-mini
+```
+
+チャンネル設定がない場合は、グローバル設定が使用されます。
+`/connpass model status` で現在の設定を確認できます。
+
+### 対応プロバイダー
+
+| プロバイダー | 環境変数 | 推奨モデル |
+|-------------|---------|-----------|
+| OpenAI | `OPENAI_API_KEY` | gpt-4o-mini |
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | claude-3-5-haiku-20241022 |
+| Google (Gemini) | `GOOGLE_GENERATIVE_AI_API_KEY` | gemini-1.5-flash |
+
 ## 構成
 
 ```
@@ -102,7 +163,7 @@ packages/
 
 - **Runtime**: Node.js 22+
 - **Discord**: discord.js
-- **AI**: Mastra + OpenAI GPT-4o-mini
+- **AI**: Mastra + Vercel AI SDK (OpenAI / Claude / Gemini)
 - **API**: @kajidog/connpass-api-client
 
 ## ライセンス

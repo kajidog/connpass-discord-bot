@@ -13,7 +13,8 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 };
 
 interface ProgressLine {
-  id?: string;
+  id: string;
+  toolName?: string; // メッセージ再構築用にツール名を保持
   icon: string;
   text: string;
   timestamp: Date;
@@ -31,6 +32,7 @@ export class ProgressEmbed {
   private toolStartTimes: Map<string, number> = new Map();
   private toolArgs: Map<string, string> = new Map();
   private processStartTime: number = 0;
+  private modelInfo: { provider: string; model: string } | null = null;
   
   private channel: SendableChannel;
   private updateTimer: NodeJS.Timeout | null = null;
@@ -43,6 +45,14 @@ export class ProgressEmbed {
 
   constructor(channel: SendableChannel) {
     this.channel = channel;
+  }
+
+  /**
+   * 使用モデル情報を設定
+   */
+  setModelInfo(provider: string, model: string): void {
+    this.modelInfo = { provider, model };
+    this.scheduleUpdate();
   }
 
   /**
@@ -72,48 +82,74 @@ export class ProgressEmbed {
 
   /**
    * ツール呼び出し開始を追加
+   * @returns 呼び出しID (完了報告に使用)
    */
-  addToolCall(toolName: string, args?: Record<string, unknown>): void {
+  addToolCall(toolName: string, args?: Record<string, unknown>): string {
     this.setThinking(false);
     this.state = 'executing';
     
-    this.toolStartTimes.set(toolName, Date.now());
+    // ユニークIDを生成
+    const callId = `${toolName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    
+    this.toolStartTimes.set(callId, Date.now());
     const displayName = TOOL_DISPLAY_NAMES[toolName] || toolName;
     let text = `**${displayName}**`;
+
+    console.log(`[Agent] Tool Start: ${toolName} (ID: ${callId})`);
+    if (args) {
+      console.log(`[Agent] Tool Args:`, JSON.stringify(args));
+    }
 
     // 引数の簡易表示
     if (args) {
       const argSummary = this.formatArgs(args);
       if (argSummary) {
         text += ` [${argSummary}]`;
-        this.toolArgs.set(toolName, `[${argSummary}]`);
+        this.toolArgs.set(callId, `[${argSummary}]`);
       }
     }
 
     // 新規行として追加
     this.lines.push({
-      id: toolName, // IDで識別して後で更新
+      id: callId,
+      toolName,
       icon: '▶️',
       text,
       timestamp: new Date(),
     });
     this.scheduleUpdate();
+    
+    return callId;
   }
 
   /**
    * ツール完了を追加
+   * @param callId addToolCallが返したID
    */
-  addToolResult(toolName: string, success: boolean, summary?: string): void {
-    const startTime = this.toolStartTimes.get(toolName);
+  addToolResult(callId: string, success: boolean, summary?: string): void {
+    const startTime = this.toolStartTimes.get(callId);
     const duration = startTime ? Date.now() - startTime : 0;
     const timeStr = this.formatDuration(duration);
 
+    // 行を検索
+    const existingIndex = this.lines.findIndex(l => l.id === callId);
+    if (existingIndex === -1) {
+      console.warn(`[Progress] Tool result received for unknown ID: ${callId}`);
+      return;
+    }
+
+    const line = this.lines[existingIndex];
+    const toolName = line.toolName || 'Unknown Tool';
     const displayName = TOOL_DISPLAY_NAMES[toolName] || toolName;
+
+    console.log(`[Agent] Tool End: ${toolName} (ID: ${callId}) - Success: ${success}, Duration: ${timeStr}`);
+    if (summary) console.log(`[Agent] Tool Result Summary: ${summary}`);
+
     const icon = success ? '✅' : '⚠️';
     let text = `**${displayName}**`;
 
     // 引数を復元
-    const cachedArgs = this.toolArgs.get(toolName);
+    const cachedArgs = this.toolArgs.get(callId);
     if (cachedArgs) {
       text += ` ${cachedArgs}`;
     }
@@ -124,23 +160,13 @@ export class ProgressEmbed {
     
     text += ` (${timeStr})`;
 
-    // 既存の行を更新
-    const existingIndex = this.lines.findIndex(l => l.id === toolName);
-    if (existingIndex !== -1) {
-      this.lines[existingIndex] = {
-        ...this.lines[existingIndex],
-        icon,
-        text,
-        timestamp: new Date(),
-      };
-    } else {
-      // 万が一開始行が見つからない場合は新規追加
-      this.lines.push({
-        icon,
-        text,
-        timestamp: new Date(),
-      });
-    }
+    // 更新
+    this.lines[existingIndex] = {
+      ...line,
+      icon,
+      text,
+      timestamp: new Date(),
+    };
     
     // ツール完了後は思考中に戻る
     this.setThinking(true);
@@ -151,8 +177,9 @@ export class ProgressEmbed {
    * カスタムステータス行を追加
    */
   addStatus(icon: string, text: string, id?: string): void {
+    const lineId = id || `status-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     this.lines.push({
-      id,
+      id: lineId,
       icon,
       text,
       timestamp: new Date(),
@@ -182,6 +209,7 @@ export class ProgressEmbed {
     
     const totalDuration = Date.now() - this.initTimestamp();
     this.lines.push({
+      id: 'complete',
       icon: '✅',
       text: `処理完了 (${this.formatDuration(totalDuration)})`,
       timestamp: new Date(),
@@ -206,6 +234,7 @@ export class ProgressEmbed {
     this.state = 'error';
     const totalDuration = Date.now() - this.initTimestamp();
     this.lines.push({
+      id: 'error',
       icon: '❌',
       text: `エラー: ${errorMessage} (${this.formatDuration(totalDuration)})`,
       timestamp: new Date(),
@@ -287,6 +316,15 @@ export class ProgressEmbed {
     // クエリ表示
     if (userQuery) {
       embed.setDescription(`\`\`\`\n${userQuery.slice(0, 100)}${userQuery.length > 100 ? '...' : ''}\n\`\`\``);
+    }
+
+    // モデル情報を表示
+    if (this.modelInfo) {
+      embed.addFields({
+        name: 'MODEL',
+        value: `\`${this.modelInfo.provider}/${this.modelInfo.model}\``,
+        inline: true,
+      });
     }
 
     // 進捗ライン

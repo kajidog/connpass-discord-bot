@@ -4,6 +4,7 @@ import {
   FileFeedStore,
   FileUserStore,
   FileSummaryCacheStore,
+  FileChannelModelStore,
   FeedExecutor,
   Scheduler,
 } from '@connpass-discord-bot/feed-worker';
@@ -21,10 +22,10 @@ import {
   handleUserShow,
   handleUserUnregister,
 } from './commands/handlers/user.js';
+import { handleModelCommand } from './commands/handlers/model.js';
 import { handleToday } from './commands/handlers/today.js';
 import { handleHelp } from './commands/handlers/help.js';
 import { handleAgentMentionWithProgress, type AgentContext } from './agent/index.js';
-import { connpassAgent } from './agent/connpass-agent.js';
 
 // 環境変数チェック
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
@@ -69,6 +70,7 @@ const connpassClient = new ConnpassClient({
 const feedStore = new FileFeedStore(JOB_STORE_DIR);
 const userStore = new FileUserStore(JOB_STORE_DIR);
 const summaryCache = new FileSummaryCacheStore(JOB_STORE_DIR);
+const channelModelStore = new FileChannelModelStore(JOB_STORE_DIR);
 
 // シンク・エグゼキュータ・スケジューラー初期化
 const sink = new DiscordSink(discordClient);
@@ -81,6 +83,7 @@ const agentContext: AgentContext = {
   feedStore,
   userStore,
   summaryCache,
+  channelModelStore,
 };
 
 // Discord準備完了
@@ -102,7 +105,7 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
 
     // ボタン
     if (interaction.isButton()) {
-      await handleButtonInteraction(interaction, connpassClient, userStore, summaryCache);
+      await handleButtonInteraction(interaction, connpassClient, userStore, summaryCache, channelModelStore);
       return;
     }
 
@@ -148,6 +151,12 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
         return;
       }
 
+      // /connpass model *
+      if (group === 'model') {
+        await handleModelCommand(interaction, channelModelStore);
+        return;
+      }
+
       // /connpass today
       if (subcommand === 'today') {
         await handleToday(interaction, userStore, connpassClient);
@@ -187,7 +196,7 @@ if (ENABLE_AI_AGENT && OPENAI_API_KEY) {
     }
 
     try {
-      await handleAgentMentionWithProgress(message, connpassAgent, agentContext);
+      await handleAgentMentionWithProgress(message, agentContext);
     } catch (error) {
       console.error('[Agent] Error handling mention:', error);
       try {

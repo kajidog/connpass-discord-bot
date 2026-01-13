@@ -1,15 +1,30 @@
 import { Message, TextChannel, ThreadChannel, ActionRow, MessageActionRowComponent, ChannelType, TextBasedChannel } from 'discord.js';
-import { Agent } from '@mastra/core/agent';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import type { ConnpassClient } from '@kajidog/connpass-api-client';
-import type { IFeedStore, IUserStore, ISummaryCacheStore } from '@connpass-discord-bot/core';
+import type { IFeedStore, IUserStore, ISummaryCacheStore, IChannelModelStore } from '@connpass-discord-bot/core';
+import { setMessageCache, clearMessageCache } from './conversation-tools.js';
 import { ProgressEmbed } from './progress-embed.js';
+import { createConnpassAgent } from './connpass-agent.js';
+import { getAIConfig, getModelConfigForChannel, hasApiKey } from '../ai/index.js';
 
 export interface AgentContext {
   connpassClient: ConnpassClient;
   feedStore: IFeedStore;
   userStore: IUserStore;
   summaryCache?: ISummaryCacheStore;
+  channelModelStore: IChannelModelStore;
+}
+
+/**
+ * チャンネルまたは親チャンネルのIDを取得
+ * スレッドの場合は親チャンネルの設定を使用
+ */
+function getChannelIdForConfig(message: Message): string {
+  if (message.channel.isThread()) {
+    const thread = message.channel as ThreadChannel;
+    return thread.parentId ?? message.channelId;
+  }
+  return message.channelId;
 }
 
 /**
@@ -17,9 +32,22 @@ export interface AgentContext {
  */
 export async function handleAgentMention(
   message: Message,
-  agent: Agent,
   context: AgentContext
 ): Promise<void> {
+  // チャンネル設定を取得（スレッドの場合は親チャンネル）
+  const configChannelId = getChannelIdForConfig(message);
+  const channelModelConfig = await context.channelModelStore.get(configChannelId);
+  
+  // 使用するモデルのAPIキーが存在するかチェック
+  const aiConfig = getAIConfig();
+  const modelConfig = getModelConfigForChannel(aiConfig, 'agent', channelModelConfig);
+  if (!hasApiKey(modelConfig.provider)) {
+    await message.reply(`❌ ${modelConfig.provider} のAPIキーが設定されていません。環境変数を確認してください。`);
+    return;
+  }
+
+  console.log(`[Agent] Using model: ${modelConfig.provider}/${modelConfig.model} (channel: ${configChannelId})`);
+  const agent = createConnpassAgent(channelModelConfig);
   const content = message.content
     .replace(/<@!?\d+>/g, '')
     .trim();
@@ -138,9 +166,22 @@ export async function handleAgentMention(
  */
 export async function handleAgentMentionStream(
   message: Message,
-  agent: Agent,
   context: AgentContext
 ): Promise<void> {
+  // チャンネル設定を取得（スレッドの場合は親チャンネル）
+  const configChannelId = getChannelIdForConfig(message);
+  const channelModelConfig = await context.channelModelStore.get(configChannelId);
+  
+  // 使用するモデルのAPIキーが存在するかチェック
+  const aiConfig = getAIConfig();
+  const modelConfig = getModelConfigForChannel(aiConfig, 'agent', channelModelConfig);
+  if (!hasApiKey(modelConfig.provider)) {
+    await message.reply(`❌ ${modelConfig.provider} のAPIキーが設定されていません。環境変数を確認してください。`);
+    return;
+  }
+
+  console.log(`[Agent] Using model: ${modelConfig.provider}/${modelConfig.model} (channel: ${configChannelId})`);
+  const agent = createConnpassAgent(channelModelConfig);
   const content = message.content
     .replace(/<@!?\d+>/g, '')
     .trim();
@@ -317,12 +358,28 @@ function summarizeToolResult(toolName: string, result: unknown): string {
  */
 export async function handleAgentMentionWithProgress(
   message: Message,
-  agent: Agent,
   context: AgentContext
 ): Promise<void> {
+  // チャンネル設定を取得（スレッドの場合は親チャンネル）
+  const configChannelId = getChannelIdForConfig(message);
+  const channelModelConfig = await context.channelModelStore.get(configChannelId);
+  
+  // 使用するモデルのAPIキーが存在するかチェック
+  const aiConfig = getAIConfig();
+  const modelConfig = getModelConfigForChannel(aiConfig, 'agent', channelModelConfig);
+  if (!hasApiKey(modelConfig.provider)) {
+    await message.reply(`❌ ${modelConfig.provider} のAPIキーが設定されていません。環境変数を確認してください。`);
+    return;
+  }
+
+  console.log(`[Agent] Using model: ${modelConfig.provider}/${modelConfig.model} (channel: ${configChannelId})`);
+  console.log(`[Agent] Raw message content: "${message.content}"`);
+  const agent = createConnpassAgent(channelModelConfig);
   const content = message.content
     .replace(/<@!?\d+>/g, '')
     .trim();
+
+  console.log(`[Agent] Processed content: "${content}"`);
 
   if (!content) {
     await message.reply('何かお聞きしたいことはありますか？');
@@ -378,7 +435,47 @@ export async function handleAgentMentionWithProgress(
     });
   }
 
+  // メッセージ履歴を取得してキャッシュ＆直近コンテキスト構築（既存スレッド/DMの場合）
+  if (message.channel.isThread() || message.channel.type === ChannelType.DM) {
+    try {
+      const channel = targetChannel as TextBasedChannel;
+      // 現在のメッセージも含めて取得（順序保証のため）
+      const messagesCollection = await channel.messages.fetch({ limit: 20 });
+      const messages = Array.from(messagesCollection.values());
+      
+      // ツール用にキャッシュ
+      setMessageCache(channel.id, messages);
+
+      // 直近3件（現在のメッセージ以外）をプロンプトに含める
+      const recentHistory = messages
+        .filter((m) => m.id !== message.id)
+        .slice(0, 7)
+        .reverse();
+
+      if (recentHistory.length > 0) {
+        contextInfo += `\n\n【直近の会話履歴】\n`;
+        recentHistory.forEach((m) => {
+          let content = m.content.replace(/<@!?\d+>/g, '').trim();
+          // Embedがある場合
+          if (!content && m.embeds.length > 0) {
+             if (m.embeds[0].title) content = `[Embed: ${m.embeds[0].title}]`;
+             else if (m.embeds[0].description) content = `[Embed: ${m.embeds[0].description.slice(0, 20)}...]`;
+          }
+          if (!content && m.attachments.size > 0) content = '[画像/添付ファイル]';
+          if (!content) content = '[コンテンツなし]';
+          
+          const author = m.author.bot ? 'Assistant' : (m.author.displayName || m.author.username);
+          contextInfo += `- ${author}: ${content}\n`;
+        });
+        contextInfo += `(これより前の履歴が必要な場合は、getConversationSummaryツールを使用してください)\n`;
+      }
+    } catch (e) {
+      console.warn('[Agent] Failed to fetch history:', e);
+    }
+  }
+
   const progress = new ProgressEmbed(targetChannel);
+  progress.setModelInfo(modelConfig.provider, modelConfig.model);
   await progress.start(content);
 
   // 入力中表示（継続的）
@@ -435,5 +532,6 @@ export async function handleAgentMentionWithProgress(
     await targetChannel.send('申し訳ありません。エラーが発生しました。');
   } finally {
     clearInterval(typingInterval);
+    clearMessageCache();
   }
 }

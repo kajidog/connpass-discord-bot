@@ -64,6 +64,12 @@ importers:
 
   apps/discord-bot:
     dependencies:
+      '@ai-sdk/anthropic':
+        specifier: ^2.0.0
+        version: 2.0.33(zod@3.25.76)
+      '@ai-sdk/google':
+        specifier: ^2.0.0
+        version: 2.0.40(zod@3.25.76)
       '@ai-sdk/openai':
         specifier: ^2.0.53
         version: 2.0.53(zod@3.25.76)
