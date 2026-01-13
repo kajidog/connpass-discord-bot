@@ -1,20 +1,29 @@
-import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 import type {
   ConnpassEvent,
   EventSummaryCache,
   ISummaryCacheStore,
+  ChannelModelConfig,
 } from '@connpass-discord-bot/core';
+import { getModel, getAIConfig, getModelConfigForChannel, hasApiKey } from '../ai/index.js';
 
 /**
  * イベント詳細をAIで要約する
+ * @param event イベント情報
+ * @param summaryCache 要約キャッシュストア
+ * @param channelModelConfig チャンネル固有のモデル設定（オプション）
  */
 export async function summarizeEventDetails(
   event: ConnpassEvent,
-  summaryCache?: ISummaryCacheStore
+  summaryCache?: ISummaryCacheStore,
+  channelModelConfig?: ChannelModelConfig | null
 ): Promise<string | null> {
-  // OpenAI APIキーがない場合は要約しない
-  if (!process.env.OPENAI_API_KEY) {
+  // 設定からモデル情報を取得
+  const aiConfig = getAIConfig();
+  const summarizerConfig = getModelConfigForChannel(aiConfig, 'summarizer', channelModelConfig);
+
+  // 使用するプロバイダーのAPIキーがない場合は要約しない
+  if (!hasApiKey(summarizerConfig.provider)) {
     return null;
   }
 
@@ -33,7 +42,7 @@ export async function summarizeEventDetails(
 
   try {
     const result = await generateText({
-      model: openai('gpt-4o-mini'),
+      model: getModel(summarizerConfig),
       system: `あなたはConnpassイベントの説明文を要約するアシスタントです。
 以下のルールに従って要約してください：
 

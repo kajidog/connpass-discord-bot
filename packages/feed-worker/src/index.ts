@@ -4,6 +4,7 @@ export { FileFeedStore } from './storage/FileFeedStore.js';
 export { InMemoryUserStore } from './storage/InMemoryUserStore.js';
 export { FileUserStore } from './storage/FileUserStore.js';
 export { FileSummaryCacheStore } from './storage/FileSummaryCacheStore.js';
+export { FileChannelModelStore } from './storage/FileChannelModelStore.js';
 
 // Executor
 export type { ISink } from './executor/ISink.js';

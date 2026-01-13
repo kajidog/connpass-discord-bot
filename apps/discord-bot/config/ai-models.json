@@ -1,0 +1,41 @@
+{
+  "agent": {
+    "provider": "openai",
+    "model": "gpt-4o-mini"
+  },
+  "summarizer": {
+    "provider": "openai",
+    "model": "gpt-4o-mini"
+  },
+  "allowedModels": {
+    "openai": [
+      "gpt-5.2-pro",
+      "gpt-5.2",
+      "gpt-5.1",
+      "gpt-5",
+      "gpt-5-mini",
+      "gpt-4.1",
+      "gpt-4.1-mini",
+      "gpt-4o",
+      "gpt-4o-mini"
+    ],
+    "anthropic": [
+      "claude-opus-4-5",
+      "claude-sonnet-4-5",
+      "claude-haiku-4-5",
+      "claude-opus-4-1",
+      "claude-sonnet-4-0",
+      "claude-3-7-sonnet-latest",
+      "claude-3-5-haiku-latest"
+    ],
+    "google": [
+      "gemini-3-pro-preview",
+      "gemini-2.5-pro",
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+      "gemini-2.0-flash",
+      "gemini-1.5-pro",
+      "gemini-1.5-flash"
+    ]
+  }
+}
