@@ -39,6 +39,22 @@ function formatDateJST(timestamp: number): string {
   return new Date(timestamp).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
 }
 
+function formatSizeFilter(minParticipants?: number, minLimit?: number): string | null {
+  if (minParticipants === undefined && minLimit === undefined) {
+    return null;
+  }
+
+  if (minParticipants !== undefined && minLimit !== undefined) {
+    return `**規模フィルタ**: 参加者 ${minParticipants}人以上 または 募集人数 ${minLimit}人以上`;
+  }
+
+  if (minParticipants !== undefined) {
+    return `**規模フィルタ**: 参加者 ${minParticipants}人以上`;
+  }
+
+  return `**規模フィルタ**: 募集人数 ${minLimit}人以上`;
+}
+
 /**
  * cron式の妥当性を検証
  */
@@ -90,6 +106,8 @@ export async function handleFeedSet(
   const ownerNickname = interaction.options.getString('owner_nickname') ?? undefined;
   const order =
     (interaction.options.getString('order') as FeedConfig['order']) ?? DEFAULTS.ORDER;
+  const minParticipantCount = interaction.options.getInteger('min_participants') ?? undefined;
+  const minLimit = interaction.options.getInteger('min_limit') ?? undefined;
   const useAi = interaction.options.getBoolean('use_ai') ?? false;
 
   // cron式検証
@@ -117,6 +135,8 @@ export async function handleFeedSet(
       hashtag,
       ownerNickname,
       order,
+      minParticipantCount,
+      minLimit,
       useAi,
     },
     state: existingFeed?.state ?? { sentEvents: {} },
@@ -139,6 +159,7 @@ export async function handleFeedSet(
     hashtag ? `**ハッシュタグ**: #${hashtag}` : null,
     ownerNickname ? `**主催者**: ${ownerNickname}` : null,
     `**ソート順**: ${order}`,
+    formatSizeFilter(minParticipantCount, minLimit),
     '',
     `**次回実行**: ${nextRunAt ? formatDateJST(nextRunAt) : '未設定'}`,
   ]
@@ -180,6 +201,7 @@ export async function handleFeedStatus(
     config.hashtag ? `**ハッシュタグ**: #${config.hashtag}` : null,
     config.ownerNickname ? `**主催者**: ${config.ownerNickname}` : null,
     `**ソート順**: ${config.order ?? DEFAULTS.ORDER}`,
+    formatSizeFilter(config.minParticipantCount, config.minLimit),
     '',
     `**最終実行**: ${state.lastRunAt ? formatDateJST(state.lastRunAt) : '未実行'}`,
     `**次回実行**: ${state.nextRunAt ? formatDateJST(state.nextRunAt) : '未設定'}`,

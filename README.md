@@ -69,6 +69,13 @@ pnpm --filter @connpass-discord-bot/discord-bot start
 | `/connpass user register` | ニックネーム登録 |
 | `/connpass today` | 今日のイベント |
 
+### フィードの規模フィルタ
+
+`/connpass feed set` で以下の条件を指定すると、参加人数または募集人数が条件を満たすイベントのみ通知します。
+
+- `min_participants`: 参加人数が指定人数以上
+- `min_limit`: 募集人数が指定人数以上
+
 ### AIアシスタント
 
 Botにメンションして質問：

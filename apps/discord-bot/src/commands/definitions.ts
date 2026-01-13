@@ -66,6 +66,18 @@ export const connpassCommand = new SlashCommandBuilder()
                 { name: '開始日時（遅い順）', value: 'started_desc' }
               )
           )
+          .addIntegerOption((o) =>
+            o
+              .setName('min_participants')
+              .setDescription('参加人数がこの人数以上のイベントを通知')
+              .setMinValue(1)
+          )
+          .addIntegerOption((o) =>
+            o
+              .setName('min_limit')
+              .setDescription('募集人数がこの人数以上のイベントを通知')
+              .setMinValue(1)
+          )
           .addBooleanOption((o) =>
             o.setName('use_ai').setDescription('AI機能を使用（後日実装予定）')
           )

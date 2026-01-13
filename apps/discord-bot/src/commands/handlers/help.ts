@@ -22,6 +22,8 @@ export async function handleHelp(interaction: ChatInputCommandInteraction): Prom
           '`hashtag` - ハッシュタグ（先頭#不要）',
           '`owner_nickname` - 主催者ニックネーム',
           '`order` - ソート順',
+          '`min_participants` - 参加人数の下限',
+          '`min_limit` - 募集人数の下限',
         ].join('\n'),
       },
       {
