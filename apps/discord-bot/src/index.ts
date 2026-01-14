@@ -1,5 +1,13 @@
 import { Client, GatewayIntentBits, Events, Message, ChannelType, Partials } from 'discord.js';
 import { ConnpassClient } from '@kajidog/connpass-api-client';
+import type {
+  IFeedStore,
+  IUserStore,
+  IAdminStore,
+  IBanStore,
+  ISummaryCacheStore,
+  IChannelModelStore,
+} from '@connpass-discord-bot/core';
 import {
   FileFeedStore,
   FileUserStore,
@@ -7,6 +15,13 @@ import {
   FileBanStore,
   FileSummaryCacheStore,
   FileChannelModelStore,
+  DrizzleFeedStore,
+  DrizzleUserStore,
+  DrizzleAdminStore,
+  DrizzleBanStore,
+  DrizzleSummaryCacheStore,
+  DrizzleChannelModelStore,
+  createDatabase,
   FeedExecutor,
   Scheduler,
 } from '@connpass-discord-bot/feed-worker';
@@ -34,6 +49,8 @@ import { handleAgentMentionWithProgress, type AgentContext } from './agent/index
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const CONNPASS_API_KEY = process.env.CONNPASS_API_KEY;
 const JOB_STORE_DIR = process.env.JOB_STORE_DIR || './data';
+const STORAGE_TYPE = process.env.STORAGE_TYPE || 'file';
+const DATABASE_URL = process.env.DATABASE_URL || `${JOB_STORE_DIR}/app.db`;
 
 if (!DISCORD_BOT_TOKEN) {
   console.error('DISCORD_BOT_TOKEN is required');
@@ -70,12 +87,31 @@ const connpassClient = new ConnpassClient({
 });
 
 // ストア初期化
-const feedStore = new FileFeedStore(JOB_STORE_DIR);
-const userStore = new FileUserStore(JOB_STORE_DIR);
-const adminStore = new FileAdminStore(JOB_STORE_DIR);
-const banStore = new FileBanStore(JOB_STORE_DIR);
-const summaryCache = new FileSummaryCacheStore(JOB_STORE_DIR);
-const channelModelStore = new FileChannelModelStore(JOB_STORE_DIR);
+let feedStore: IFeedStore;
+let userStore: IUserStore;
+let adminStore: IAdminStore;
+let banStore: IBanStore;
+let summaryCache: ISummaryCacheStore;
+let channelModelStore: IChannelModelStore;
+
+if (STORAGE_TYPE === 'sqlite') {
+  console.log('[Bot] Using SQLite storage');
+  const { db } = createDatabase(DATABASE_URL);
+  feedStore = new DrizzleFeedStore(db);
+  userStore = new DrizzleUserStore(db);
+  adminStore = new DrizzleAdminStore(db);
+  banStore = new DrizzleBanStore(db);
+  summaryCache = new DrizzleSummaryCacheStore(db);
+  channelModelStore = new DrizzleChannelModelStore(db);
+} else {
+  console.log('[Bot] Using File storage');
+  feedStore = new FileFeedStore(JOB_STORE_DIR);
+  userStore = new FileUserStore(JOB_STORE_DIR);
+  adminStore = new FileAdminStore(JOB_STORE_DIR);
+  banStore = new FileBanStore(JOB_STORE_DIR);
+  summaryCache = new FileSummaryCacheStore(JOB_STORE_DIR);
+  channelModelStore = new FileChannelModelStore(JOB_STORE_DIR);
+}
 
 // シンク・エグゼキュータ・スケジューラー初期化
 const sink = new DiscordSink(discordClient);

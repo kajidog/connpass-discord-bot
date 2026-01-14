@@ -10,6 +10,8 @@ services:
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
       ENABLE_AI_AGENT: ${ENABLE_AI_AGENT:-true}
       JOB_STORE_DIR: /data
+      STORAGE_TYPE: ${STORAGE_TYPE:-sqlite}
+      DATABASE_URL: /data/app.db
       AGENT_DATABASE_URL: file:/data/agent-memory.db
       AI_CONFIG_PATH: ${AI_CONFIG_PATH:-}
     volumes:
@@ -18,6 +20,8 @@ services:
       - ./packages:/app/packages
       - /app/apps/discord-bot/node_modules
       - /app/apps/ai-agent/node_modules
+      - /app/packages/feed-worker/node_modules
+      - /app/packages/core/node_modules
     restart: unless-stopped
 
 volumes:

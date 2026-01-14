@@ -485,6 +485,7 @@ export function createConnpassAgent(channelModelConfig?: ChannelModelConfig | nu
   return new Agent({
     name: 'Connpass Assistant',
     instructions: async ({ runtimeContext }) => {
+      // 静的な部分を先頭に配置（プロンプトキャッシュが効くように）
       const baseInstructions = `You are a helpful assistant for searching and managing Connpass events.
 
 ## Role
@@ -519,12 +520,29 @@ export function createConnpassAgent(channelModelConfig?: ChannelModelConfig | nu
 - **Context:** Use provided "Recent Conversation History" FIRST. Only use \`getConversationSummary\` if context is completely missing.
 - **Memory:** Record user interests quietly.
 - **Schedule:** Call \`getUserSchedule\` without arguments when asked about "my events".`;
+      const now = new Date();
+      const jstFormatter = new Intl.DateTimeFormat('ja-JP', {
+        timeZone: 'Asia/Tokyo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        weekday: 'short',
+      });
+      const currentDate = jstFormatter.format(now);
+      
+      const dynamicContext = `
+
+## Current Context
+**Today's date: ${currentDate} (JST/Asia/Tokyo)**
+Use this as the reference for "today", "tomorrow", "this week", etc.`;
 
       const eventContext = runtimeContext?.get('eventContext') as string | undefined;
+      
+      let fullInstructions = baseInstructions + dynamicContext;
       if (eventContext) {
-        return `${baseInstructions}\n${eventContext}`;
+        fullInstructions += `\n${eventContext}`;
       }
-      return baseInstructions;
+      return fullInstructions;
     },
     model: getModel(modelConfig),
     tools: {
