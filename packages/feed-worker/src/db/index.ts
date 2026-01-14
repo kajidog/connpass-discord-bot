@@ -1,5 +1,7 @@
 import Database from 'better-sqlite3';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import * as schema from './schema/index.js';
 
 export type DrizzleDB = BetterSQLite3Database<typeof schema>;
@@ -78,6 +80,12 @@ function initializeSchema(sqlite: InstanceType<typeof Database>): void {
 }
 
 export function createDatabase(dbPath: string): { db: DrizzleDB } {
+  // Ensure parent directory exists (better-sqlite3 doesn't create it)
+  const dir = dirname(dbPath);
+  if (dir && dir !== '.') {
+    mkdirSync(dir, { recursive: true });
+  }
+
   const sqlite = new Database(dbPath);
   sqlite.pragma('journal_mode = WAL');
   
@@ -87,4 +95,3 @@ export function createDatabase(dbPath: string): { db: DrizzleDB } {
   const db = drizzle(sqlite, { schema });
   return { db };
 }
-
