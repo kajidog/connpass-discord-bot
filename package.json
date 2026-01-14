@@ -24,5 +24,8 @@
   },
   "dependencies": {
     "@mastra/evals": "^0.14.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
   }
 }

@@ -1,4 +1,4 @@
-// Storage implementations
+// Storage implementations - File based
 export { InMemoryFeedStore } from './storage/InMemoryFeedStore.js';
 export { FileFeedStore } from './storage/FileFeedStore.js';
 export { InMemoryUserStore } from './storage/InMemoryUserStore.js';
@@ -9,6 +9,20 @@ export { InMemoryBanStore } from './storage/InMemoryBanStore.js';
 export { FileBanStore } from './storage/FileBanStore.js';
 export { FileSummaryCacheStore } from './storage/FileSummaryCacheStore.js';
 export { FileChannelModelStore } from './storage/FileChannelModelStore.js';
+
+// Storage implementations - Drizzle (SQLite)
+export {
+  DrizzleFeedStore,
+  DrizzleUserStore,
+  DrizzleAdminStore,
+  DrizzleBanStore,
+  DrizzleSummaryCacheStore,
+  DrizzleChannelModelStore,
+} from './storage/drizzle/index.js';
+
+// Database
+export { createDatabase } from './db/index.js';
+export type { DrizzleDB } from './db/index.js';
 
 // Executor
 export type { ISink } from './executor/ISink.js';
