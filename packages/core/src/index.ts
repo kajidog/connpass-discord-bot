@@ -24,6 +24,14 @@ export type { IAdminStore } from './repositories/IAdminStore.js';
 export type { IBanStore } from './repositories/IBanStore.js';
 export type { ISummaryCacheStore } from './repositories/ISummaryCacheStore.js';
 export type { IChannelModelStore } from './repositories/IChannelModelStore.js';
+export type {
+  IUserNotifySettingsStore,
+  UserNotifySettings,
+} from './repositories/IUserNotifySettingsStore.js';
+export type {
+  IUserNotifySentStore,
+  UserNotifySent,
+} from './repositories/IUserNotifySentStore.js';
 
 // AI Model Configuration
 export type { AIProvider, ModelConfig, AIModelsConfig, ChannelModelConfig } from './ai/index.js';

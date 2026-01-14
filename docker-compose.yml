@@ -14,6 +14,9 @@ services:
       DATABASE_URL: /data/app.db
       AGENT_DATABASE_URL: file:/data/agent-memory.db
       AI_CONFIG_PATH: ${AI_CONFIG_PATH:-}
+      ENABLE_EVENT_NOTIFY: ${ENABLE_EVENT_NOTIFY:-true}
+      DEFAULT_NOTIFY_MINUTES_BEFORE: ${DEFAULT_NOTIFY_MINUTES_BEFORE:-15}
+      NOTIFY_CHECK_INTERVAL_MS: ${NOTIFY_CHECK_INTERVAL_MS:-60000}
     volumes:
       - bot-data:/data
       - ./apps:/app/apps

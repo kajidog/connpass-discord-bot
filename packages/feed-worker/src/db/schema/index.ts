@@ -4,3 +4,5 @@ export * from './admins.js';
 export * from './bans.js';
 export * from './channelModels.js';
 export * from './summaryCache.js';
+export * from './userNotifySettings.js';
+export * from './userNotifySentEvents.js';

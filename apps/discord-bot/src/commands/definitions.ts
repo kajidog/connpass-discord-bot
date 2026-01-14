@@ -207,6 +207,31 @@ export const connpassCommand = new SlashCommandBuilder()
       )
   )
 
+  // /connpass notify サブコマンドグループ
+  .addSubcommandGroup((group) =>
+    group
+      .setName('notify')
+      .setDescription('イベント通知設定を管理')
+      .addSubcommand((sub) =>
+        sub
+          .setName('on')
+          .setDescription('イベント通知をONにする')
+          .addIntegerOption((o) =>
+            o
+              .setName('minutes_before')
+              .setDescription('イベント開始何分前に通知するか（デフォルト: 15分）')
+              .setMinValue(5)
+              .setMaxValue(60)
+          )
+      )
+      .addSubcommand((sub) =>
+        sub.setName('off').setDescription('イベント通知をOFFにする')
+      )
+      .addSubcommand((sub) =>
+        sub.setName('status').setDescription('現在の通知設定を表示')
+      )
+  )
+
   // /connpass today
   .addSubcommand((sub) => sub.setName('today').setDescription('今日参加予定のイベントを表示'))
 
