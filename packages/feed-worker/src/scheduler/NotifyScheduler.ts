@@ -151,8 +151,23 @@ export class NotifyScheduler {
     const now = new Date();
     const today = this.formatYmd(now);
 
+    // 通知ウィンドウの終点時刻を計算
+    const targetTime = new Date(
+      now.getTime() + settings.minutesBefore * 60 * 1000
+    );
+    const targetDay = this.formatYmd(targetTime);
+
     // 今日のイベントを取得（キャッシュ活用）
-    const events = await this.fetchUserEvents(user.connpassNickname, today);
+    let events = await this.fetchUserEvents(user.connpassNickname, today);
+
+    // 通知ウィンドウが日をまたぐ場合は翌日のイベントも取得
+    if (today !== targetDay) {
+      const tomorrowEvents = await this.fetchUserEvents(
+        user.connpassNickname,
+        targetDay
+      );
+      events = [...events, ...tomorrowEvents];
+    }
 
     if (events.length === 0) {
       return;
@@ -160,10 +175,6 @@ export class NotifyScheduler {
 
     // 通知対象イベントを抽出
     // 条件: 現在時刻 < 開始時刻 <= 現在時刻 + minutesBefore
-    const targetTime = new Date(
-      now.getTime() + settings.minutesBefore * 60 * 1000
-    );
-
     const toNotify = events.filter((event) => {
       const startTime = new Date(event.startedAt);
       return now < startTime && startTime <= targetTime;

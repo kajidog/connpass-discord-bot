@@ -258,7 +258,14 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
       }
 
       // /connpass notify *
-      if (group === 'notify' && notifySettingsStore) {
+      if (group === 'notify') {
+        if (!notifySettingsStore) {
+          await interaction.reply({
+            content: '❌ 通知機能はSQLiteストレージ使用時のみ利用可能です。\n`STORAGE_TYPE=sqlite` を設定してください。',
+            ephemeral: true,
+          });
+          return;
+        }
         switch (subcommand) {
           case 'on':
             await handleNotifyOn(interaction, userStore, notifySettingsStore);
