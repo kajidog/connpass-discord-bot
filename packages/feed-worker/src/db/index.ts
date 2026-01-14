@@ -76,6 +76,22 @@ function initializeSchema(sqlite: InstanceType<typeof Database>): void {
       summary TEXT NOT NULL,
       cached_at TEXT NOT NULL
     );
+
+    -- user_notify_settings table
+    CREATE TABLE IF NOT EXISTS user_notify_settings (
+      discord_user_id TEXT PRIMARY KEY REFERENCES users(discord_user_id) ON DELETE CASCADE,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      minutes_before INTEGER NOT NULL DEFAULT 15,
+      updated_at TEXT NOT NULL
+    );
+
+    -- user_notify_sent_events table
+    CREATE TABLE IF NOT EXISTS user_notify_sent_events (
+      discord_user_id TEXT NOT NULL REFERENCES users(discord_user_id) ON DELETE CASCADE,
+      event_id INTEGER NOT NULL,
+      notified_at TEXT NOT NULL,
+      PRIMARY KEY (discord_user_id, event_id)
+    );
   `);
 }
 

@@ -1,7 +1,7 @@
 import { Message, TextChannel, ThreadChannel, ActionRow, MessageActionRowComponent, ChannelType, TextBasedChannel } from 'discord.js';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import type { ConnpassClient } from '@kajidog/connpass-api-client';
-import type { IFeedStore, IUserStore, ISummaryCacheStore, IChannelModelStore, IBanStore } from '@connpass-discord-bot/core';
+import type { IFeedStore, IUserStore, ISummaryCacheStore, IChannelModelStore, IBanStore, IUserNotifySettingsStore } from '@connpass-discord-bot/core';
 import { setMessageCache, clearMessageCache } from './conversation-tools.js';
 import { ProgressEmbed } from './progress-embed.js';
 import { createConnpassAgent } from './connpass-agent.js';
@@ -15,6 +15,7 @@ export interface AgentContext {
   summaryCache?: ISummaryCacheStore;
   channelModelStore: IChannelModelStore;
   banStore: IBanStore;
+  notifySettingsStore?: IUserNotifySettingsStore;
 }
 
 /**
@@ -128,6 +129,7 @@ export async function handleAgentMention(
     runtimeContext.set('feedStore', context.feedStore);
     runtimeContext.set('userStore', context.userStore);
     runtimeContext.set('summaryCache', context.summaryCache);
+    runtimeContext.set('notifySettingsStore', context.notifySettingsStore);
     runtimeContext.set('discordUserId', message.author.id);
     runtimeContext.set('channelId', message.channelId);
     runtimeContext.set('guildId', message.guildId);
@@ -261,6 +263,7 @@ export async function handleAgentMentionStream(
     runtimeContext.set('feedStore', context.feedStore);
     runtimeContext.set('userStore', context.userStore);
     runtimeContext.set('summaryCache', context.summaryCache);
+    runtimeContext.set('notifySettingsStore', context.notifySettingsStore);
     runtimeContext.set('discordUserId', message.author.id);
     runtimeContext.set('channelId', message.channelId);
     runtimeContext.set('guildId', message.guildId);
@@ -354,6 +357,11 @@ function summarizeToolResult(toolName: string, result: unknown): string {
       }
       break;
     case 'manageFeed':
+      if (r.message) {
+        return String(r.message).slice(0, 50);
+      }
+      break;
+    case 'manageNotify':
       if (r.message) {
         return String(r.message).slice(0, 50);
       }
@@ -505,6 +513,7 @@ export async function handleAgentMentionWithProgress(
     runtimeContext.set('feedStore', context.feedStore);
     runtimeContext.set('userStore', context.userStore);
     runtimeContext.set('summaryCache', context.summaryCache);
+    runtimeContext.set('notifySettingsStore', context.notifySettingsStore);
     runtimeContext.set('discordUserId', message.author.id);
     runtimeContext.set('channelId', message.channelId);
     runtimeContext.set('guildId', message.guildId);

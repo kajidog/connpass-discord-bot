@@ -18,6 +18,8 @@ export {
   DrizzleBanStore,
   DrizzleSummaryCacheStore,
   DrizzleChannelModelStore,
+  DrizzleUserNotifySettingsStore,
+  DrizzleUserNotifySentStore,
 } from './storage/drizzle/index.js';
 
 // Database
@@ -33,3 +35,10 @@ export type { ExecutionResult } from './executor/FeedExecutor.js';
 // Scheduler
 export { Scheduler } from './scheduler/Scheduler.js';
 export type { SchedulerOptions } from './scheduler/Scheduler.js';
+
+// Notify Scheduler
+export { NotifyScheduler } from './scheduler/NotifyScheduler.js';
+export type {
+  NotifySchedulerOptions,
+  INotifySink,
+} from './scheduler/NotifyScheduler.js';

@@ -7,6 +7,8 @@ import type {
   IBanStore,
   ISummaryCacheStore,
   IChannelModelStore,
+  IUserNotifySettingsStore,
+  IUserNotifySentStore,
 } from '@connpass-discord-bot/core';
 import {
   FileFeedStore,
@@ -21,11 +23,15 @@ import {
   DrizzleBanStore,
   DrizzleSummaryCacheStore,
   DrizzleChannelModelStore,
+  DrizzleUserNotifySettingsStore,
+  DrizzleUserNotifySentStore,
   createDatabase,
   FeedExecutor,
   Scheduler,
+  NotifyScheduler,
 } from '@connpass-discord-bot/feed-worker';
 import { DiscordSink } from './sink/DiscordSink.js';
+import { DMNotifySink } from './sink/DMNotifySink.js';
 import { handleAutocomplete } from './interactions/autocomplete.js';
 import { handleButtonInteraction } from './interactions/buttons.js';
 import {
@@ -43,6 +49,11 @@ import { handleModelCommand } from './commands/handlers/model.js';
 import { handleAdminCommand } from './commands/handlers/admin.js';
 import { handleToday } from './commands/handlers/today.js';
 import { handleHelp } from './commands/handlers/help.js';
+import {
+  handleNotifyOn,
+  handleNotifyOff,
+  handleNotifyStatus,
+} from './commands/handlers/notify.js';
 import { handleAgentMentionWithProgress, type AgentContext } from './agent/index.js';
 
 // 環境変数チェック
@@ -65,6 +76,13 @@ if (!CONNPASS_API_KEY) {
 // AI機能フラグ
 const ENABLE_AI_AGENT = process.env.ENABLE_AI_AGENT !== 'false';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+// イベント通知機能フラグ
+const ENABLE_EVENT_NOTIFY = process.env.ENABLE_EVENT_NOTIFY !== 'false';
+const NOTIFY_CHECK_INTERVAL_MS = parseInt(
+  process.env.NOTIFY_CHECK_INTERVAL_MS || '60000',
+  10
+);
 
 if (ENABLE_AI_AGENT && !OPENAI_API_KEY) {
   console.warn('[Bot] OPENAI_API_KEY is not set, AI agent will be disabled');
@@ -93,6 +111,8 @@ let adminStore: IAdminStore;
 let banStore: IBanStore;
 let summaryCache: ISummaryCacheStore;
 let channelModelStore: IChannelModelStore;
+let notifySettingsStore: IUserNotifySettingsStore | undefined;
+let notifySentStore: IUserNotifySentStore | undefined;
 
 if (STORAGE_TYPE === 'sqlite') {
   console.log('[Bot] Using SQLite storage');
@@ -103,6 +123,8 @@ if (STORAGE_TYPE === 'sqlite') {
   banStore = new DrizzleBanStore(db);
   summaryCache = new DrizzleSummaryCacheStore(db);
   channelModelStore = new DrizzleChannelModelStore(db);
+  notifySettingsStore = new DrizzleUserNotifySettingsStore(db);
+  notifySentStore = new DrizzleUserNotifySentStore(db);
 } else {
   console.log('[Bot] Using File storage');
   feedStore = new FileFeedStore(JOB_STORE_DIR);
@@ -118,6 +140,23 @@ const sink = new DiscordSink(discordClient);
 const executor = new FeedExecutor(connpassClient, feedStore, sink);
 const scheduler = new Scheduler(feedStore, executor);
 
+// 通知スケジューラー初期化（SQLite使用時のみ）
+let notifyScheduler: NotifyScheduler | undefined;
+if (ENABLE_EVENT_NOTIFY && notifySettingsStore && notifySentStore) {
+  const dmNotifySink = new DMNotifySink(discordClient);
+  notifyScheduler = new NotifyScheduler(
+    userStore,
+    notifySettingsStore,
+    notifySentStore,
+    connpassClient,
+    dmNotifySink,
+    { checkIntervalMs: NOTIFY_CHECK_INTERVAL_MS }
+  );
+  console.log('[Bot] Event notification enabled');
+} else if (ENABLE_EVENT_NOTIFY && STORAGE_TYPE !== 'sqlite') {
+  console.warn('[Bot] Event notification requires SQLite storage');
+}
+
 // AIエージェントコンテキスト
 const agentContext: AgentContext = {
   connpassClient,
@@ -126,6 +165,7 @@ const agentContext: AgentContext = {
   summaryCache,
   channelModelStore,
   banStore,
+  notifySettingsStore,
 };
 
 // Discord準備完了
@@ -134,6 +174,11 @@ discordClient.once(Events.ClientReady, async (c) => {
 
   // スケジューラー開始
   await scheduler.start();
+
+  // 通知スケジューラー開始
+  if (notifyScheduler) {
+    await notifyScheduler.start();
+  }
 });
 
 // インタラクションハンドラー
@@ -212,6 +257,29 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
         return;
       }
 
+      // /connpass notify *
+      if (group === 'notify') {
+        if (!notifySettingsStore) {
+          await interaction.reply({
+            content: '❌ 通知機能はSQLiteストレージ使用時のみ利用可能です。\n`STORAGE_TYPE=sqlite` を設定してください。',
+            ephemeral: true,
+          });
+          return;
+        }
+        switch (subcommand) {
+          case 'on':
+            await handleNotifyOn(interaction, userStore, notifySettingsStore);
+            break;
+          case 'off':
+            await handleNotifyOff(interaction, notifySettingsStore);
+            break;
+          case 'status':
+            await handleNotifyStatus(interaction, userStore, notifySettingsStore);
+            break;
+        }
+        return;
+      }
+
       // /connpass today
       if (subcommand === 'today') {
         await handleToday(interaction, userStore, connpassClient);
@@ -269,6 +337,9 @@ if (ENABLE_AI_AGENT && OPENAI_API_KEY) {
 async function shutdown() {
   console.log('[Bot] Shutting down...');
   await scheduler.stop();
+  if (notifyScheduler) {
+    await notifyScheduler.stop();
+  }
   discordClient.destroy();
   process.exit(0);
 }

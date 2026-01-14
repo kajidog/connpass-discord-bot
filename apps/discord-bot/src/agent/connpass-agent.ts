@@ -10,6 +10,7 @@ import type {
   ConnpassEvent,
   IFeedStore,
   IUserStore,
+  IUserNotifySettingsStore,
   Feed,
 } from '@connpass-discord-bot/core';
 import { ORDER_MAP, DEFAULTS } from '@connpass-discord-bot/core';
@@ -421,6 +422,156 @@ const manageFeedTool = createTool({
   },
 });
 
+const manageNotifyTool = createTool({
+  id: 'manage-notify',
+  description: `Manage user's event notification settings.
+- status: Check current notification settings
+- enable: Turn on event notifications (requires Connpass nickname registration)
+- disable: Turn off event notifications  
+- update: Change notification timing (minutesBefore)`,
+  inputSchema: z.object({
+    action: z.enum(['status', 'enable', 'disable', 'update']).describe('Action to perform'),
+    minutesBefore: z.number().min(5).max(60).optional().describe('Minutes before event to notify (default: 15, range: 5-60)'),
+  }),
+  outputSchema: z.object({
+    success: z.boolean(),
+    settings: z.object({
+      enabled: z.boolean(),
+      minutesBefore: z.number(),
+      updatedAt: z.string(),
+    }).nullable(),
+    message: z.string(),
+  }),
+  execute: async ({ context, runtimeContext }) => {
+    const progress = runtimeContext?.get('progress') as ProgressEmbed | undefined;
+    const callId = progress?.addToolCall('manageNotify', context);
+
+    const notifySettingsStore = runtimeContext?.get('notifySettingsStore') as IUserNotifySettingsStore | undefined;
+    const userStore = runtimeContext?.get('userStore') as IUserStore | undefined;
+    const discordUserId = runtimeContext?.get('discordUserId') as string | undefined;
+
+    if (!notifySettingsStore) {
+      if (callId) progress?.addToolResult(callId, false, '機能無効');
+      return { success: false, settings: null, message: '通知機能が有効化されていません' };
+    }
+
+    if (!discordUserId) {
+      if (callId) progress?.addToolResult(callId, false, 'ユーザー不明');
+      return { success: false, settings: null, message: 'ユーザーIDが不明です' };
+    }
+
+    try {
+      switch (context.action) {
+        case 'status': {
+          const settings = await notifySettingsStore.find(discordUserId);
+          if (!settings) {
+            if (callId) progress?.addToolResult(callId, true, '未設定');
+            return { success: true, settings: null, message: '通知設定がありません。`enable`で有効化できます。' };
+          }
+          if (callId) progress?.addToolResult(callId, true, settings.enabled ? 'ON' : 'OFF');
+          return {
+            success: true,
+            settings: {
+              enabled: settings.enabled,
+              minutesBefore: settings.minutesBefore,
+              updatedAt: settings.updatedAt,
+            },
+            message: settings.enabled
+              ? `通知ON: イベント開始${settings.minutesBefore}分前に通知`
+              : '通知OFF',
+          };
+        }
+
+        case 'enable': {
+          // ユーザー登録チェック
+          if (!userStore) {
+            if (callId) progress?.addToolResult(callId, false, 'ストア未設定');
+            return { success: false, settings: null, message: 'ユーザーストアが未設定です' };
+          }
+          const user = await userStore.find(discordUserId);
+          if (!user) {
+            if (callId) progress?.addToolResult(callId, false, '未登録');
+            return {
+              success: false,
+              settings: null,
+              message: '先に `/connpass user register` でConnpassニックネームを登録してください',
+            };
+          }
+
+          const minutesBefore = context.minutesBefore ?? 15;
+          const now = new Date().toISOString();
+          await notifySettingsStore.save({
+            discordUserId,
+            enabled: true,
+            minutesBefore,
+            updatedAt: now,
+          });
+
+          if (callId) progress?.addToolResult(callId, true, 'ON');
+          return {
+            success: true,
+            settings: { enabled: true, minutesBefore, updatedAt: now },
+            message: `通知ON: イベント開始${minutesBefore}分前にDMで通知します`,
+          };
+        }
+
+        case 'disable': {
+          const settings = await notifySettingsStore.find(discordUserId);
+          if (settings) {
+            await notifySettingsStore.save({
+              ...settings,
+              enabled: false,
+              updatedAt: new Date().toISOString(),
+            });
+          }
+          if (callId) progress?.addToolResult(callId, true, 'OFF');
+          return {
+            success: true,
+            settings: settings
+              ? { enabled: false, minutesBefore: settings.minutesBefore, updatedAt: new Date().toISOString() }
+              : null,
+            message: '通知をOFFにしました',
+          };
+        }
+
+        case 'update': {
+          if (!context.minutesBefore) {
+            if (callId) progress?.addToolResult(callId, false, '時間未指定');
+            return { success: false, settings: null, message: 'minutesBeforeを指定してください (5-60分)' };
+          }
+
+          const settings = await notifySettingsStore.find(discordUserId);
+          if (!settings) {
+            if (callId) progress?.addToolResult(callId, false, '未設定');
+            return { success: false, settings: null, message: '先に`enable`で通知を有効化してください' };
+          }
+
+          const now = new Date().toISOString();
+          await notifySettingsStore.save({
+            ...settings,
+            minutesBefore: context.minutesBefore,
+            updatedAt: now,
+          });
+
+          if (callId) progress?.addToolResult(callId, true, `${context.minutesBefore}分前`);
+          return {
+            success: true,
+            settings: { enabled: settings.enabled, minutesBefore: context.minutesBefore, updatedAt: now },
+            message: `通知タイミングを${context.minutesBefore}分前に変更しました`,
+          };
+        }
+
+        default:
+          if (callId) progress?.addToolResult(callId, false, '不明な操作');
+          return { success: false, settings: null, message: '不明なアクション' };
+      }
+    } catch (error) {
+      if (callId) progress?.addToolResult(callId, false, 'エラー');
+      return { success: false, settings: null, message: `エラー: ${error}` };
+    }
+  },
+});
+
 function formatFeed(feed: Feed) {
   return {
     id: feed.config.id,
@@ -493,6 +644,7 @@ export function createConnpassAgent(channelModelConfig?: ChannelModelConfig | nu
 2. Event Details: Provide detailed info and summaries.
 3. Check Schedule: Check participating events.
 4. Manage Feed: Support periodic notification settings.
+5. Manage Notifications: Control event start reminder settings (on/off, timing).
 
 ## Discord Output Format
 - Use **bold** for headers.
@@ -550,6 +702,7 @@ Use this as the reference for "today", "tomorrow", "this week", etc.`;
       getEventDetails: getEventDetailsTool,
       getUserSchedule: getUserScheduleTool,
       manageFeed: manageFeedTool,
+      manageNotify: manageNotifyTool,
       getConversationSummary: conversationTools.getConversationSummary,
       getMessage: conversationTools.getMessage,
     },

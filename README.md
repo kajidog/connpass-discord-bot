@@ -8,6 +8,7 @@ ConnpassイベントをDiscordに通知するBot。AIアシスタント機能付
 - **イベント検索**: キーワード、日付、場所で絞り込み
 - **AIアシスタント**: Botにメンションして会話形式でイベント検索
 - **詳細表示**: ボタンクリックでイベント詳細とAI要約を表示
+- **イベント通知**: 参加予定イベント開始前にDMでリマインド通知
 
 ## セットアップ
 
@@ -77,6 +78,9 @@ pnpm --filter @connpass-discord-bot/discord-bot start
 | `/connpass admin ban` | ユーザーをBAN |
 | `/connpass admin unban` | BAN解除 |
 | `/connpass admin list` | 管理者/BAN一覧 |
+| `/connpass notify on` | イベント通知ON |
+| `/connpass notify off` | イベント通知OFF |
+| `/connpass notify status` | 通知設定確認 |
 | `/connpass today` | 今日のイベント |
 
 **権限メモ**
