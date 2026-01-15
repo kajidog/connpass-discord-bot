@@ -6,6 +6,9 @@ import type {
   UserNotifySettings,
   ConnpassEvent,
 } from '@connpass-discord-bot/core';
+import { Logger, LogLevel, ActionType } from '@connpass-discord-bot/core';
+
+const logger = Logger.getInstance();
 
 export interface NotifySchedulerOptions {
   /** チェック間隔（ミリ秒）。デフォルト: 60000 (1分) */
@@ -75,12 +78,20 @@ export class NotifyScheduler {
 
     // 定期チェックループ開始
     this.checkInterval = setInterval(() => {
-      this.checkAndNotify().catch(console.error);
+      this.checkAndNotify().catch((error) => {
+        logger.error('NotifyScheduler', 'Check cycle failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     }, this.checkIntervalMs);
 
-    console.log(
-      `[NotifyScheduler] Started with ${this.checkIntervalMs}ms check interval`
-    );
+    logger.logAction({
+      level: LogLevel.INFO,
+      actionType: ActionType.SCHEDULER_START,
+      component: 'NotifyScheduler',
+      message: `NotifyScheduler started with ${this.checkIntervalMs}ms check interval`,
+      metadata: { checkIntervalMs: this.checkIntervalMs },
+    });
   }
 
   /**
@@ -92,7 +103,12 @@ export class NotifyScheduler {
       this.checkInterval = undefined;
     }
     this.isRunning = false;
-    console.log('[NotifyScheduler] Stopped');
+    logger.logAction({
+      level: LogLevel.INFO,
+      actionType: ActionType.SCHEDULER_STOP,
+      component: 'NotifyScheduler',
+      message: 'NotifyScheduler stopped',
+    });
   }
 
   /**
@@ -107,19 +123,19 @@ export class NotifyScheduler {
         return;
       }
 
-      console.log(
-        `[NotifyScheduler] Checking ${enabledSettings.length} users for notifications`
-      );
+      logger.debug('NotifyScheduler', `Checking ${enabledSettings.length} users for notifications`, {
+        userCount: enabledSettings.length,
+      });
 
       // 各ユーザーについてチェック
       for (const settings of enabledSettings) {
         try {
           await this.checkUserEvents(settings);
         } catch (error) {
-          console.error(
-            `[NotifyScheduler] Error checking user ${settings.discordUserId}:`,
-            error
-          );
+          logger.error('NotifyScheduler', `Error checking user ${settings.discordUserId}`, {
+            userId: settings.discordUserId,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
 
         // レート制限遅延
@@ -131,7 +147,9 @@ export class NotifyScheduler {
       // 古い送信済みレコードをクリーンアップ（30日以上）
       await this.cleanupOldRecords();
     } catch (error) {
-      console.error('[NotifyScheduler] Check failed:', error);
+      logger.error('NotifyScheduler', 'Check failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -142,9 +160,9 @@ export class NotifyScheduler {
     // ユーザー情報取得
     const user = await this.userStore.find(settings.discordUserId);
     if (!user) {
-      console.warn(
-        `[NotifyScheduler] User not found: ${settings.discordUserId}`
-      );
+      logger.warn('NotifyScheduler', `User not found: ${settings.discordUserId}`, {
+        userId: settings.discordUserId,
+      });
       return;
     }
 
@@ -194,9 +212,17 @@ export class NotifyScheduler {
       return;
     }
 
-    console.log(
-      `[NotifyScheduler] Sending ${unsent.length} notifications to ${settings.discordUserId}`
-    );
+    logger.logAction({
+      level: LogLevel.INFO,
+      actionType: ActionType.NOTIFY_SEND,
+      component: 'NotifyScheduler',
+      message: `Sending ${unsent.length} notifications`,
+      userId: settings.discordUserId,
+      metadata: {
+        eventCount: unsent.length,
+        eventIds: unsent.map((e) => e.id),
+      },
+    });
 
     // 通知送信
     try {
@@ -207,10 +233,17 @@ export class NotifyScheduler {
         await this.notifySentStore.markSent(settings.discordUserId, event.id);
       }
     } catch (error) {
-      console.error(
-        `[NotifyScheduler] Failed to send notification to ${settings.discordUserId}:`,
-        error
-      );
+      logger.logAction({
+        level: LogLevel.ERROR,
+        actionType: ActionType.NOTIFY_ERROR,
+        component: 'NotifyScheduler',
+        message: 'Failed to send notification',
+        userId: settings.discordUserId,
+        metadata: {
+          error: error instanceof Error ? error.message : String(error),
+          eventCount: unsent.length,
+        },
+      });
     }
   }
 
@@ -253,10 +286,11 @@ export class NotifyScheduler {
 
       return events;
     } catch (error) {
-      console.error(
-        `[NotifyScheduler] Failed to fetch events for ${nickname}:`,
-        error
-      );
+      logger.error('NotifyScheduler', `Failed to fetch events for ${nickname}`, {
+        nickname,
+        date,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return cached?.events ?? [];
     }
   }
@@ -280,12 +314,14 @@ export class NotifyScheduler {
     try {
       const deletedCount = await this.notifySentStore.cleanupOlderThan(30);
       if (deletedCount > 0) {
-        console.log(
-          `[NotifyScheduler] Cleaned up ${deletedCount} old sent records`
-        );
+        logger.debug('NotifyScheduler', `Cleaned up ${deletedCount} old sent records`, {
+          deletedCount,
+        });
       }
     } catch (error) {
-      console.error('[NotifyScheduler] Cleanup failed:', error);
+      logger.error('NotifyScheduler', 'Cleanup failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

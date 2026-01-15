@@ -20,6 +20,7 @@ export {
   DrizzleChannelModelStore,
   DrizzleUserNotifySettingsStore,
   DrizzleUserNotifySentStore,
+  DrizzleLogWriter,
 } from './storage/drizzle/index.js';
 
 // Database

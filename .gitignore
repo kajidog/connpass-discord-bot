@@ -20,7 +20,7 @@ coverage/
 .env.*.local
 
 # Local data
-data/
+/data/
 docker-data/
 compose-data/
 

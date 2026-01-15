@@ -6,3 +6,4 @@ export * from './channelModels.js';
 export * from './summaryCache.js';
 export * from './userNotifySettings.js';
 export * from './userNotifySentEvents.js';
+export * from './logs.js';
