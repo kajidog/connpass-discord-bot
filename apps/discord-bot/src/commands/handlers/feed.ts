@@ -1,10 +1,31 @@
 import type { ChatInputCommandInteraction } from 'discord.js';
 import type { Feed, FeedConfig, IFeedStore, IBanStore } from '@connpass-discord-bot/core';
-import { DEFAULTS } from '@connpass-discord-bot/core';
+import { DEFAULTS, Logger, LogLevel, ActionType } from '@connpass-discord-bot/core';
 import type { Scheduler, FeedExecutor } from '@connpass-discord-bot/feed-worker';
 import { CronExpressionParser } from 'cron-parser';
 import { getPrefectureName } from '../../data/prefectures.js';
 import { isBannedUser } from '../../security/permissions.js';
+
+const logger = Logger.getInstance();
+
+/**
+ * FeedConfigを比較可能なオブジェクトに変換
+ */
+function feedConfigToLogObject(config: FeedConfig): Record<string, unknown> {
+  return {
+    schedule: config.schedule,
+    rangeDays: config.rangeDays,
+    keywordsAnd: config.keywordsAnd,
+    keywordsOr: config.keywordsOr,
+    location: config.location,
+    hashtag: config.hashtag,
+    ownerNickname: config.ownerNickname,
+    order: config.order,
+    minParticipantCount: config.minParticipantCount,
+    minLimit: config.minLimit,
+    useAi: config.useAi,
+  };
+}
 
 /**
  * キーワード文字列をパース（カンマ/スペース区切り）
@@ -154,6 +175,19 @@ export async function handleFeedSet(
   await store.save(feed);
   await scheduler.scheduleFeed(channelId);
 
+  // スケジュール変更ログを記録
+  logger.logAction({
+    level: LogLevel.INFO,
+    actionType: existingFeed ? ActionType.SCHEDULE_UPDATE : ActionType.SCHEDULE_CREATE,
+    component: 'Feed',
+    message: existingFeed ? 'Feed schedule updated' : 'Feed schedule created',
+    userId: interaction.user.id,
+    guildId: interaction.guildId ?? undefined,
+    channelId,
+    beforeState: existingFeed ? feedConfigToLogObject(existingFeed.config) : undefined,
+    afterState: feedConfigToLogObject(feed.config),
+  });
+
   // 次回実行日時を取得
   const savedFeed = await store.get(channelId);
   const nextRunAt = savedFeed?.state.nextRunAt;
@@ -254,6 +288,19 @@ export async function handleFeedRemove(
 
   await scheduler.unscheduleFeed(channelId);
   await store.delete(channelId);
+
+  // スケジュール削除ログを記録
+  logger.logAction({
+    level: LogLevel.INFO,
+    actionType: ActionType.SCHEDULE_DELETE,
+    component: 'Feed',
+    message: 'Feed schedule deleted',
+    userId: interaction.user.id,
+    guildId: interaction.guildId ?? undefined,
+    channelId,
+    beforeState: feedConfigToLogObject(feed.config),
+    afterState: undefined,
+  });
 
   await interaction.reply({
     content: 'フィード設定を削除しました。',

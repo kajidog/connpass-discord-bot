@@ -92,6 +92,40 @@ function initializeSchema(sqlite: InstanceType<typeof Database>): void {
       notified_at TEXT NOT NULL,
       PRIMARY KEY (discord_user_id, event_id)
     );
+
+    -- app_logs table
+    CREATE TABLE IF NOT EXISTS app_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp INTEGER NOT NULL,
+      level INTEGER NOT NULL,
+      component TEXT NOT NULL,
+      message TEXT NOT NULL,
+      metadata TEXT
+    );
+
+    -- action_logs table
+    CREATE TABLE IF NOT EXISTS action_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp INTEGER NOT NULL,
+      level INTEGER NOT NULL,
+      action_type TEXT NOT NULL,
+      component TEXT NOT NULL,
+      message TEXT NOT NULL,
+      user_id TEXT,
+      guild_id TEXT,
+      channel_id TEXT,
+      before_state TEXT,
+      after_state TEXT,
+      metadata TEXT
+    );
+
+    -- Create indexes for efficient log queries
+    CREATE INDEX IF NOT EXISTS idx_app_logs_timestamp ON app_logs(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_app_logs_level ON app_logs(level);
+    CREATE INDEX IF NOT EXISTS idx_app_logs_component ON app_logs(component);
+    CREATE INDEX IF NOT EXISTS idx_action_logs_timestamp ON action_logs(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_action_logs_action_type ON action_logs(action_type);
+    CREATE INDEX IF NOT EXISTS idx_action_logs_user_id ON action_logs(user_id);
   `);
 }
 

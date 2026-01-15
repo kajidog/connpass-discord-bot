@@ -6,3 +6,4 @@ export { DrizzleSummaryCacheStore } from './DrizzleSummaryCacheStore.js';
 export { DrizzleChannelModelStore } from './DrizzleChannelModelStore.js';
 export { DrizzleUserNotifySettingsStore } from './DrizzleUserNotifySettingsStore.js';
 export { DrizzleUserNotifySentStore } from './DrizzleUserNotifySentStore.js';
+export { DrizzleLogWriter } from './DrizzleLogWriter.js';

@@ -9,6 +9,15 @@ import type {
   IChannelModelStore,
   IUserNotifySettingsStore,
   IUserNotifySentStore,
+  ILogWriter,
+} from '@connpass-discord-bot/core';
+import {
+  Logger,
+  ConsoleLogWriter,
+  LogLevel,
+  LogDestination,
+  parseLogLevel,
+  parseLogDestination,
 } from '@connpass-discord-bot/core';
 import {
   FileFeedStore,
@@ -25,6 +34,7 @@ import {
   DrizzleChannelModelStore,
   DrizzleUserNotifySettingsStore,
   DrizzleUserNotifySentStore,
+  DrizzleLogWriter,
   createDatabase,
   FeedExecutor,
   Scheduler,
@@ -63,13 +73,24 @@ const JOB_STORE_DIR = process.env.JOB_STORE_DIR || './data';
 const STORAGE_TYPE = process.env.STORAGE_TYPE || 'file';
 const DATABASE_URL = process.env.DATABASE_URL || `${JOB_STORE_DIR}/app.db`;
 
+// ログ設定
+const LOG_LEVEL = parseLogLevel(process.env.LOG_LEVEL || 'info');
+const LOG_DESTINATION = parseLogDestination(process.env.LOG_DESTINATION || 'console');
+
+// ロガー初期化（早期に初期化してエラーログも記録できるようにする）
+const logger = Logger.initialize(LOG_LEVEL);
+logger.addWriter(new ConsoleLogWriter());
+
+// DBロガーは後で追加（DB初期化後）
+let dbLogWriter: ILogWriter | undefined;
+
 if (!DISCORD_BOT_TOKEN) {
-  console.error('DISCORD_BOT_TOKEN is required');
+  logger.error('Bot', 'DISCORD_BOT_TOKEN is required');
   process.exit(1);
 }
 
 if (!CONNPASS_API_KEY) {
-  console.error('CONNPASS_API_KEY is required');
+  logger.error('Bot', 'CONNPASS_API_KEY is required');
   process.exit(1);
 }
 
@@ -85,7 +106,7 @@ const NOTIFY_CHECK_INTERVAL_MS = parseInt(
 );
 
 if (ENABLE_AI_AGENT && !OPENAI_API_KEY) {
-  console.warn('[Bot] OPENAI_API_KEY is not set, AI agent will be disabled');
+  logger.warn('Bot', 'OPENAI_API_KEY is not set, AI agent will be disabled');
 }
 
 // クライアント初期化
@@ -115,7 +136,7 @@ let notifySettingsStore: IUserNotifySettingsStore | undefined;
 let notifySentStore: IUserNotifySentStore | undefined;
 
 if (STORAGE_TYPE === 'sqlite') {
-  console.log('[Bot] Using SQLite storage');
+  logger.info('Bot', 'Using SQLite storage', { databaseUrl: DATABASE_URL });
   const { db } = createDatabase(DATABASE_URL);
   feedStore = new DrizzleFeedStore(db);
   userStore = new DrizzleUserStore(db);
@@ -125,14 +146,26 @@ if (STORAGE_TYPE === 'sqlite') {
   channelModelStore = new DrizzleChannelModelStore(db);
   notifySettingsStore = new DrizzleUserNotifySettingsStore(db);
   notifySentStore = new DrizzleUserNotifySentStore(db);
+
+  // DBログライターを追加
+  if (LOG_DESTINATION === LogDestination.DATABASE || LOG_DESTINATION === LogDestination.BOTH) {
+    dbLogWriter = new DrizzleLogWriter(db);
+    logger.addWriter(dbLogWriter);
+    logger.info('Bot', 'Database logging enabled');
+  }
 } else {
-  console.log('[Bot] Using File storage');
+  logger.info('Bot', 'Using File storage', { storeDir: JOB_STORE_DIR });
   feedStore = new FileFeedStore(JOB_STORE_DIR);
   userStore = new FileUserStore(JOB_STORE_DIR);
   adminStore = new FileAdminStore(JOB_STORE_DIR);
   banStore = new FileBanStore(JOB_STORE_DIR);
   summaryCache = new FileSummaryCacheStore(JOB_STORE_DIR);
   channelModelStore = new FileChannelModelStore(JOB_STORE_DIR);
+
+  // Fileストレージの場合、DBログは使用不可
+  if (LOG_DESTINATION === LogDestination.DATABASE || LOG_DESTINATION === LogDestination.BOTH) {
+    logger.warn('Bot', 'Database logging requires SQLite storage, falling back to console only');
+  }
 }
 
 // シンク・エグゼキュータ・スケジューラー初期化
@@ -152,9 +185,9 @@ if (ENABLE_EVENT_NOTIFY && notifySettingsStore && notifySentStore) {
     dmNotifySink,
     { checkIntervalMs: NOTIFY_CHECK_INTERVAL_MS }
   );
-  console.log('[Bot] Event notification enabled');
+  logger.info('Bot', 'Event notification enabled', { checkIntervalMs: NOTIFY_CHECK_INTERVAL_MS });
 } else if (ENABLE_EVENT_NOTIFY && STORAGE_TYPE !== 'sqlite') {
-  console.warn('[Bot] Event notification requires SQLite storage');
+  logger.warn('Bot', 'Event notification requires SQLite storage');
 }
 
 // AIエージェントコンテキスト
@@ -170,7 +203,7 @@ const agentContext: AgentContext = {
 
 // Discord準備完了
 discordClient.once(Events.ClientReady, async (c) => {
-  console.log(`[Discord] Ready! Logged in as ${c.user.tag}`);
+  logger.info('Discord', `Ready! Logged in as ${c.user.tag}`, { userId: c.user.id });
 
   // スケジューラー開始
   await scheduler.start();
@@ -293,7 +326,12 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
       }
     }
   } catch (error) {
-    console.error('[Discord] Interaction error:', error);
+    logger.error('Discord', 'Interaction error', {
+      error: error instanceof Error ? error.message : String(error),
+      userId: interaction.user.id,
+      guildId: interaction.guildId,
+      channelId: interaction.channelId,
+    });
 
     // エラーレスポンス
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
@@ -321,7 +359,12 @@ if (ENABLE_AI_AGENT && OPENAI_API_KEY) {
     try {
       await handleAgentMentionWithProgress(message, agentContext);
     } catch (error) {
-      console.error('[Agent] Error handling mention:', error);
+      logger.error('Agent', 'Error handling mention', {
+        error: error instanceof Error ? error.message : String(error),
+        userId: message.author.id,
+        guildId: message.guildId,
+        channelId: message.channelId,
+      });
       try {
         await message.reply('申し訳ありません。エラーが発生しました。');
       } catch {
@@ -330,12 +373,12 @@ if (ENABLE_AI_AGENT && OPENAI_API_KEY) {
     }
   });
 
-  console.log('[Bot] AI Agent enabled');
+  logger.info('Bot', 'AI Agent enabled');
 }
 
 // グレースフルシャットダウン
 async function shutdown() {
-  console.log('[Bot] Shutting down...');
+  logger.info('Bot', 'Shutting down...');
   await scheduler.stop();
   if (notifyScheduler) {
     await notifyScheduler.stop();

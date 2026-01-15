@@ -1,6 +1,9 @@
 import { CronExpressionParser } from 'cron-parser';
 import type { IFeedStore } from '@connpass-discord-bot/core';
+import { Logger, LogLevel, ActionType } from '@connpass-discord-bot/core';
 import type { FeedExecutor } from '../executor/FeedExecutor.js';
+
+const logger = Logger.getInstance();
 
 export interface SchedulerOptions {
   /** チェック間隔（ミリ秒）。デフォルト: 60000 (1分) */
@@ -39,10 +42,20 @@ export class Scheduler {
 
     // 定期チェックループ開始
     this.checkInterval = setInterval(() => {
-      this.checkAndExecute().catch(console.error);
+      this.checkAndExecute().catch((error) => {
+        logger.error('Scheduler', 'Check cycle failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     }, this.checkIntervalMs);
 
-    console.log(`[Scheduler] Started with ${this.checkIntervalMs}ms check interval`);
+    logger.logAction({
+      level: LogLevel.INFO,
+      actionType: ActionType.SCHEDULER_START,
+      component: 'Scheduler',
+      message: `Scheduler started with ${this.checkIntervalMs}ms check interval`,
+      metadata: { checkIntervalMs: this.checkIntervalMs },
+    });
   }
 
   /**
@@ -54,7 +67,12 @@ export class Scheduler {
       this.checkInterval = undefined;
     }
     this.isRunning = false;
-    console.log('[Scheduler] Stopped');
+    logger.logAction({
+      level: LogLevel.INFO,
+      actionType: ActionType.SCHEDULER_STOP,
+      component: 'Scheduler',
+      message: 'Scheduler stopped',
+    });
   }
 
   /**
@@ -68,7 +86,11 @@ export class Scheduler {
     if (nextRun) {
       feed.state.nextRunAt = nextRun;
       await this.store.save(feed);
-      console.log(`[Scheduler] Feed ${feedId} next run: ${new Date(nextRun).toISOString()}`);
+      logger.debug('Scheduler', `Feed ${feedId} next run scheduled`, {
+        feedId,
+        nextRunAt: new Date(nextRun).toISOString(),
+        channelId: feed.config.channelId,
+      });
     }
   }
 
@@ -93,7 +115,10 @@ export class Scheduler {
       });
       return expression.next().toDate().getTime();
     } catch (error) {
-      console.error(`[Scheduler] Invalid cron expression: ${schedule}`, error);
+      logger.error('Scheduler', `Invalid cron expression: ${schedule}`, {
+        schedule,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return undefined;
     }
   }
@@ -115,23 +140,61 @@ export class Scheduler {
 
     if (toExecute.length === 0) return;
 
-    console.log(`[Scheduler] Executing ${toExecute.length} feeds`);
+    logger.logAction({
+      level: LogLevel.INFO,
+      actionType: ActionType.SCHEDULER_EXECUTE,
+      component: 'Scheduler',
+      message: `Executing ${toExecute.length} feeds`,
+      metadata: { feedCount: toExecute.length, feedIds: toExecute },
+    });
 
     // レート制限を考慮して順次実行
     for (const feedId of toExecute) {
+      const startTime = Date.now();
       try {
         const result = await this.executor.execute(feedId);
+        const duration = Date.now() - startTime;
+
         if (result.error) {
-          console.error(`[Scheduler] Feed ${feedId} error: ${result.error}`);
+          logger.logAction({
+            level: LogLevel.ERROR,
+            actionType: ActionType.SCHEDULER_ERROR,
+            component: 'Scheduler',
+            message: `Feed execution error: ${result.error}`,
+            channelId: feedId,
+            metadata: { feedId, error: result.error, durationMs: duration },
+          });
         } else {
-          console.log(
-            `[Scheduler] Feed ${feedId}: ${result.newCount}/${result.total} new events`
-          );
+          logger.logAction({
+            level: LogLevel.INFO,
+            actionType: ActionType.SCHEDULER_EXECUTE,
+            component: 'Scheduler',
+            message: `Feed executed: ${result.newCount}/${result.total} new events`,
+            channelId: feedId,
+            metadata: {
+              feedId,
+              newCount: result.newCount,
+              total: result.total,
+              durationMs: duration,
+            },
+          });
         }
         // 次回実行をスケジュール
         await this.scheduleFeed(feedId);
       } catch (error) {
-        console.error(`[Scheduler] Feed ${feedId} failed:`, error);
+        const duration = Date.now() - startTime;
+        logger.logAction({
+          level: LogLevel.ERROR,
+          actionType: ActionType.SCHEDULER_ERROR,
+          component: 'Scheduler',
+          message: 'Feed execution failed',
+          channelId: feedId,
+          metadata: {
+            feedId,
+            error: error instanceof Error ? error.message : String(error),
+            durationMs: duration,
+          },
+        });
       }
 
       // レート制限遅延
