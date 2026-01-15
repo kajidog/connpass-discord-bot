@@ -76,16 +76,21 @@ export class Logger implements ILogger {
 
   /**
    * シングルトンインスタンスを取得
+   * インスタンスが未作成の場合、デフォルト設定（コンソール出力）で自動作成される
+   * これにより initialize() 前でも安全にログ出力が可能
    */
   static getInstance(): Logger {
     if (!Logger.instance) {
       Logger.instance = new Logger();
+      // デフォルトでコンソール出力を有効化（初期化前でもログが出るように）
+      Logger.instance.addWriter(new ConsoleLogWriter());
     }
     return Logger.instance;
   }
 
   /**
    * シングルトンインスタンスを初期化（アプリケーション起動時に呼び出す）
+   * 注意: writersはクリアされるので、呼び出し側で明示的に追加する
    */
   static initialize(level: LogLevel = LogLevel.INFO): Logger {
     Logger.instance = new Logger(level);
