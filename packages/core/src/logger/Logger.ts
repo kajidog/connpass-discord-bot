@@ -90,11 +90,14 @@ export class Logger implements ILogger {
 
   /**
    * シングルトンインスタンスを初期化（アプリケーション起動時に呼び出す）
+   * 既存インスタンスを再設定するため、既に参照を持つモジュールにも設定が反映される
    * 注意: writersはクリアされるので、呼び出し側で明示的に追加する
    */
   static initialize(level: LogLevel = LogLevel.INFO): Logger {
-    Logger.instance = new Logger(level);
-    return Logger.instance;
+    const instance = Logger.getInstance();
+    instance.setLevel(level);
+    instance.clearWriters();
+    return instance;
   }
 
   /**
@@ -102,6 +105,13 @@ export class Logger implements ILogger {
    */
   addWriter(writer: ILogWriter): void {
     this.writers.push(writer);
+  }
+
+  /**
+   * 全てのログライターをクリア
+   */
+  clearWriters(): void {
+    this.writers = [];
   }
 
   /**
