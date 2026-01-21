@@ -43,3 +43,12 @@ export type {
   NotifySchedulerOptions,
   INotifySink,
 } from './scheduler/NotifyScheduler.js';
+
+// Cleanup Scheduler
+export { CleanupScheduler } from './scheduler/CleanupScheduler.js';
+export type {
+  CleanupSchedulerOptions,
+  CleanupConfig,
+  CleanupStores,
+  CleanupResult,
+} from './scheduler/CleanupScheduler.js';

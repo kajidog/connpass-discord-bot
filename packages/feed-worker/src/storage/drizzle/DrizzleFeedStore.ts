@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, lt } from 'drizzle-orm';
 import type { Feed, FeedOrder, IFeedStore } from '@connpass-discord-bot/core';
 import type { DrizzleDB } from '../../db/index.js';
 import { feeds, feedSentEvents } from '../../db/schema/index.js';
@@ -135,5 +135,22 @@ export class DrizzleFeedStore implements IFeedStore {
         sentEvents,
       },
     };
+  }
+
+  /**
+   * 指定日数より古い送信済みイベントレコードを削除
+   * @param olderThanDays 削除対象の日数
+   * @returns 削除された行数
+   */
+  async cleanupSentEvents(olderThanDays: number): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+    const cutoffIso = cutoffDate.toISOString();
+
+    const result = await this.db
+      .delete(feedSentEvents)
+      .where(lt(feedSentEvents.updatedAt, cutoffIso));
+
+    return result.changes ?? 0;
   }
 }
