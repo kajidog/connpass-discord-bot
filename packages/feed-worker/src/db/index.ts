@@ -7,6 +7,23 @@ import * as schema from './schema/index.js';
 export type DrizzleDB = BetterSQLite3Database<typeof schema>;
 
 /**
+ * Run database migrations
+ */
+function runMigrations(sqlite: InstanceType<typeof Database>): void {
+  // Migration: Add sent_at column to feed_sent_events if it doesn't exist
+  const tableInfo = sqlite.prepare("PRAGMA table_info('feed_sent_events')").all() as Array<{ name: string }>;
+  const hasSentAt = tableInfo.some((col) => col.name === 'sent_at');
+
+  if (!hasSentAt) {
+    // Add sent_at column with default value of current timestamp for existing rows
+    sqlite.exec(`
+      ALTER TABLE feed_sent_events ADD COLUMN sent_at TEXT NOT NULL DEFAULT '';
+      UPDATE feed_sent_events SET sent_at = updated_at WHERE sent_at = '';
+    `);
+  }
+}
+
+/**
  * Initialize database schema (create tables if they don't exist)
  */
 function initializeSchema(sqlite: InstanceType<typeof Database>): void {
@@ -35,6 +52,7 @@ function initializeSchema(sqlite: InstanceType<typeof Database>): void {
       feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
       event_id INTEGER NOT NULL,
       updated_at TEXT NOT NULL,
+      sent_at TEXT NOT NULL DEFAULT '',
       PRIMARY KEY (feed_id, event_id)
     );
 
@@ -138,9 +156,12 @@ export function createDatabase(dbPath: string): { db: DrizzleDB } {
 
   const sqlite = new Database(dbPath);
   sqlite.pragma('journal_mode = WAL');
-  
+
   // Initialize schema on startup
   initializeSchema(sqlite);
+
+  // Run migrations for existing databases
+  runMigrations(sqlite);
 
   const db = drizzle(sqlite, { schema });
   return { db };

@@ -57,15 +57,26 @@ export class DrizzleFeedStore implements IFeedStore {
           },
         });
 
+      // Get existing sent events to preserve sentAt values
+      const existingSentEvents = await tx.query.feedSentEvents.findMany({
+        where: eq(feedSentEvents.feedId, config.id),
+      });
+      const existingSentAtMap = new Map(
+        existingSentEvents.map((e) => [e.eventId, e.sentAt])
+      );
+
       await tx.delete(feedSentEvents).where(eq(feedSentEvents.feedId, config.id));
 
       const sentEntries = Object.entries(state.sentEvents);
       if (sentEntries.length > 0) {
+        const now = new Date().toISOString();
         await tx.insert(feedSentEvents).values(
           sentEntries.map(([eventId, updatedAt]) => ({
             feedId: config.id,
             eventId: Number(eventId),
             updatedAt,
+            // Preserve existing sentAt or use current time for new entries
+            sentAt: existingSentAtMap.get(Number(eventId)) || now,
           }))
         );
       }
@@ -139,6 +150,7 @@ export class DrizzleFeedStore implements IFeedStore {
 
   /**
    * 指定日数より古い送信済みイベントレコードを削除
+   * sentAt（実際に送信した日時）を基準に削除する
    * @param olderThanDays 削除対象の日数
    * @returns 削除された行数
    */
@@ -149,7 +161,7 @@ export class DrizzleFeedStore implements IFeedStore {
 
     const result = await this.db
       .delete(feedSentEvents)
-      .where(lt(feedSentEvents.updatedAt, cutoffIso));
+      .where(lt(feedSentEvents.sentAt, cutoffIso));
 
     return result.changes ?? 0;
   }

@@ -26,6 +26,7 @@ export const feedSentEvents = sqliteTable(
       .references(() => feeds.id, { onDelete: 'cascade' }),
     eventId: integer('event_id').notNull(),
     updatedAt: text('updated_at').notNull(),
+    sentAt: text('sent_at').notNull(),
   },
   (table) => [primaryKey({ columns: [table.feedId, table.eventId] })]
 );
