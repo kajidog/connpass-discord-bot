@@ -37,9 +37,15 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 GOOGLE_GENERATIVE_AI_API_KEY=...
 
+# ストレージ設定
+STORAGE_TYPE=sqlite          # sqlite（推奨）または file
+DATABASE_URL=./data/app.db   # SQLite DBファイルパス
+JOB_STORE_DIR=./data         # Fileストレージ使用時のディレクトリ
+
 # オプション
-JOB_STORE_DIR=./data
 ENABLE_AI_AGENT=true
+LOG_LEVEL=info               # debug, info, warn, error
+LOG_DESTINATION=both         # console, database, both
 ```
 
 ### 3. コマンド登録
@@ -160,6 +166,22 @@ AIモデルはチャンネルごとに設定可能です。OpenAI、Claude、Gem
 | OpenAI | `OPENAI_API_KEY` | gpt-4o-mini |
 | Anthropic (Claude) | `ANTHROPIC_API_KEY` | claude-3-5-haiku-20241022 |
 | Google (Gemini) | `GOOGLE_GENERATIVE_AI_API_KEY` | gemini-1.5-flash |
+
+## データベースクリーンアップ
+
+SQLiteストレージ使用時、古いデータは自動的にクリーンアップされます。
+
+### デフォルト保持期間
+
+| データ | 保持期間 | 説明 |
+|-------|---------|------|
+| アプリログ (`app_logs`) | 7日 | デバッグ・トラブルシューティング用 |
+| アクションログ (`action_logs`) | 30日 | ユーザー操作の監査ログ |
+| 送信済みイベント (`feed_sent_events`) | 90日 | 重複送信防止用 |
+| イベント要約キャッシュ (`event_summary_cache`) | 30日 | AI要約のキャッシュ |
+| 通知送信済み (`user_notify_sent_events`) | 30日 | DM通知の重複防止用 |
+
+クリーンアップは起動時と24時間ごとに自動実行されます。
 
 ## 構成
 

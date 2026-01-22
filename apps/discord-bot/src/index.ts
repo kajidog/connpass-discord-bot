@@ -39,6 +39,7 @@ import {
   FeedExecutor,
   Scheduler,
   NotifyScheduler,
+  CleanupScheduler,
 } from '@connpass-discord-bot/feed-worker';
 import { DiscordSink } from './sink/DiscordSink.js';
 import { DMNotifySink } from './sink/DMNotifySink.js';
@@ -135,21 +136,31 @@ let channelModelStore: IChannelModelStore;
 let notifySettingsStore: IUserNotifySettingsStore | undefined;
 let notifySentStore: IUserNotifySentStore | undefined;
 
+// クリーンアップ用のDrizzleストア参照
+let drizzleFeedStore: DrizzleFeedStore | undefined;
+let drizzleSummaryCacheStore: DrizzleSummaryCacheStore | undefined;
+let drizzleNotifySentStore: DrizzleUserNotifySentStore | undefined;
+let drizzleLogWriter: DrizzleLogWriter | undefined;
+
 if (STORAGE_TYPE === 'sqlite') {
   logger.info('Bot', 'Using SQLite storage', { databaseUrl: DATABASE_URL });
   const { db } = createDatabase(DATABASE_URL);
-  feedStore = new DrizzleFeedStore(db);
+  drizzleFeedStore = new DrizzleFeedStore(db);
+  feedStore = drizzleFeedStore;
   userStore = new DrizzleUserStore(db);
   adminStore = new DrizzleAdminStore(db);
   banStore = new DrizzleBanStore(db);
-  summaryCache = new DrizzleSummaryCacheStore(db);
+  drizzleSummaryCacheStore = new DrizzleSummaryCacheStore(db);
+  summaryCache = drizzleSummaryCacheStore;
   channelModelStore = new DrizzleChannelModelStore(db);
   notifySettingsStore = new DrizzleUserNotifySettingsStore(db);
-  notifySentStore = new DrizzleUserNotifySentStore(db);
+  drizzleNotifySentStore = new DrizzleUserNotifySentStore(db);
+  notifySentStore = drizzleNotifySentStore;
 
   // DBログライターを追加
   if (LOG_DESTINATION === LogDestination.DATABASE || LOG_DESTINATION === LogDestination.BOTH) {
-    dbLogWriter = new DrizzleLogWriter(db);
+    drizzleLogWriter = new DrizzleLogWriter(db);
+    dbLogWriter = drizzleLogWriter;
     logger.addWriter(dbLogWriter);
     logger.info('Bot', 'Database logging enabled');
   }
@@ -190,6 +201,24 @@ if (ENABLE_EVENT_NOTIFY && notifySettingsStore && notifySentStore) {
   logger.warn('Bot', 'Event notification requires SQLite storage');
 }
 
+// クリーンアップスケジューラー初期化（SQLite使用時のみ）
+let cleanupScheduler: CleanupScheduler | undefined;
+if (STORAGE_TYPE === 'sqlite') {
+  cleanupScheduler = new CleanupScheduler(
+    {
+      logWriter: drizzleLogWriter,
+      feedStore: drizzleFeedStore,
+      summaryCacheStore: drizzleSummaryCacheStore,
+      notifySentStore: drizzleNotifySentStore,
+    },
+    {
+      // デフォルト: 24時間ごとにクリーンアップ
+      // 保持期間: appLog=7日, actionLog=30日, feedSentEvents=90日, summaryCache=30日, notifySent=30日
+    }
+  );
+  logger.info('Bot', 'Cleanup scheduler initialized');
+}
+
 // AIエージェントコンテキスト
 const agentContext: AgentContext = {
   connpassClient,
@@ -211,6 +240,11 @@ discordClient.once(Events.ClientReady, async (c) => {
   // 通知スケジューラー開始
   if (notifyScheduler) {
     await notifyScheduler.start();
+  }
+
+  // クリーンアップスケジューラー開始（起動時に即座にクリーンアップ実行）
+  if (cleanupScheduler) {
+    await cleanupScheduler.start();
   }
 });
 
@@ -382,6 +416,9 @@ async function shutdown() {
   await scheduler.stop();
   if (notifyScheduler) {
     await notifyScheduler.stop();
+  }
+  if (cleanupScheduler) {
+    await cleanupScheduler.stop();
   }
   discordClient.destroy();
   process.exit(0);
