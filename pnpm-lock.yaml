@@ -38,7 +38,7 @@ importers:
         version: 0.24.9(openapi-types@12.1.3)(react@19.2.3)(zod@3.25.76)
       '@mastra/evals':
         specifier: ^0.14.4
-        version: 0.14.4(@mastra/core@0.24.9(openapi-types@12.1.3)(react@19.2.3)(zod@3.25.76))(ai@4.3.19(react@19.2.3)(zod@3.25.76))(zod@3.25.76)
+        version: 0.14.4(@mastra/core@0.24.9(openapi-types@12.1.3)(react@19.2.3)(zod@3.25.76))(ai@5.0.97(zod@3.25.76))(zod@3.25.76)
       '@mastra/libsql':
         specifier: ^0.16.4
         version: 0.16.4(@mastra/core@0.24.9(openapi-types@12.1.3)(react@19.2.3)(zod@3.25.76))
@@ -116,6 +116,9 @@ importers:
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@25.0.6)(yaml@2.8.2)
 
   packages/feed-worker:
     dependencies:
@@ -5338,10 +5341,10 @@ snapshots:
       - supports-color
       - typescript
 
-  '@mastra/evals@0.14.4(@mastra/core@0.24.9(openapi-types@12.1.3)(react@19.2.3)(zod@3.25.76))(ai@4.3.19(react@19.2.3)(zod@3.25.76))(zod@3.25.76)':
+  '@mastra/evals@0.14.4(@mastra/core@0.24.9(openapi-types@12.1.3)(react@19.2.3)(zod@3.25.76))(ai@5.0.97(zod@3.25.76))(zod@3.25.76)':
     dependencies:
       '@mastra/core': 0.24.9(openapi-types@12.1.3)(react@19.2.3)(zod@3.25.76)
-      ai: 4.3.19(react@19.2.3)(zod@3.25.76)
+      ai: 5.0.97(zod@3.25.76)
       compromise: 14.14.5
       fs-extra: 11.3.3
       keyword-extractor: 0.0.28
