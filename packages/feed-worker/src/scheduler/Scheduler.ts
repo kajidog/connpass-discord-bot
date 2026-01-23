@@ -179,8 +179,6 @@ export class Scheduler {
             },
           });
         }
-        // 次回実行をスケジュール
-        await this.scheduleFeed(feedId);
       } catch (error) {
         const duration = Date.now() - startTime;
         logger.logAction({
@@ -195,6 +193,16 @@ export class Scheduler {
             durationMs: duration,
           },
         });
+      } finally {
+        // エラー発生時でも必ず次回実行をスケジュール
+        try {
+          await this.scheduleFeed(feedId);
+        } catch (scheduleError) {
+          logger.error('Scheduler', `Failed to schedule next run for feed ${feedId}`, {
+            feedId,
+            error: scheduleError instanceof Error ? scheduleError.message : String(scheduleError),
+          });
+        }
       }
 
       // レート制限遅延

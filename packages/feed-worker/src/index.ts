@@ -30,8 +30,8 @@ export type { DrizzleDB } from './db/index.js';
 // Executor
 export type { ISink } from './executor/ISink.js';
 export { ConsoleSink } from './executor/ISink.js';
-export { FeedExecutor } from './executor/FeedExecutor.js';
-export type { ExecutionResult } from './executor/FeedExecutor.js';
+export { FeedExecutor, isRetryableError } from './executor/FeedExecutor.js';
+export type { ExecutionResult, RetryOptions } from './executor/FeedExecutor.js';
 
 // Scheduler
 export { Scheduler } from './scheduler/Scheduler.js';

@@ -56,3 +56,14 @@ export type {
   ILogWriter,
   ILogger,
 } from './logger/index.js';
+
+// Config validation
+export type { AppConfig, RawEnvConfig, ValidationResult, ValidationError } from './config/index.js';
+export {
+  validateConfig,
+  loadConfigOrThrow,
+  parseBoolean,
+  parsePositiveInt,
+  CONFIG_DEFAULTS,
+  CONFIG_CONSTRAINTS,
+} from './config/index.js';

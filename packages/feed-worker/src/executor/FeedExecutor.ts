@@ -1,7 +1,9 @@
 import type { ConnpassClient, Event } from '@kajidog/connpass-api-client';
 import type { Feed, IFeedStore, ConnpassEvent } from '@connpass-discord-bot/core';
-import { ORDER_MAP, DEFAULTS } from '@connpass-discord-bot/core';
+import { ORDER_MAP, DEFAULTS, Logger } from '@connpass-discord-bot/core';
 import type { ISink } from './ISink.js';
+
+const logger = Logger.getInstance();
 
 /**
  * フィード実行結果
@@ -14,14 +16,66 @@ export interface ExecutionResult {
 }
 
 /**
+ * リトライ設定
+ */
+export interface RetryOptions {
+  /** 最大リトライ回数。デフォルト: 3 */
+  maxRetries?: number;
+  /** 初期待機時間（ミリ秒）。デフォルト: 1000 */
+  initialDelayMs?: number;
+  /** 指数バックオフの乗数。デフォルト: 2 */
+  backoffMultiplier?: number;
+}
+
+/**
+ * リトライ対象のエラーかどうかを判定
+ */
+export function isRetryableError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    // ネットワークエラー
+    if (
+      message.includes('network') ||
+      message.includes('econnreset') ||
+      message.includes('econnrefused') ||
+      message.includes('etimedout') ||
+      message.includes('enotfound') ||
+      message.includes('socket hang up') ||
+      message.includes('fetch failed') ||
+      message.includes('timeout')
+    ) {
+      return true;
+    }
+    // HTTP 5xx エラー
+    if (message.includes('500') || message.includes('502') || message.includes('503') || message.includes('504')) {
+      return true;
+    }
+    // HTTP 429 レート制限
+    if (message.includes('429') || message.includes('rate limit') || message.includes('too many requests')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * フィード実行エンジン
  */
 export class FeedExecutor {
+  private readonly maxRetries: number;
+  private readonly initialDelayMs: number;
+  private readonly backoffMultiplier: number;
+
   constructor(
     private readonly client: ConnpassClient,
     private readonly store: IFeedStore,
-    private readonly sink: ISink
-  ) {}
+    private readonly sink: ISink,
+    retryOptions: RetryOptions = {}
+  ) {
+    this.maxRetries = retryOptions.maxRetries ?? 3;
+    this.initialDelayMs = retryOptions.initialDelayMs ?? 1000;
+    this.backoffMultiplier = retryOptions.backoffMultiplier ?? 2;
+  }
 
   /**
    * 指定されたフィードを実行
@@ -36,8 +90,8 @@ export class FeedExecutor {
       // 検索パラメータを構築
       const params = this.buildSearchParams(feed);
 
-      // APIからイベントを取得
-      const response = await this.client.searchEvents(params);
+      // APIからイベントを取得（リトライ付き）
+      const response = await this.fetchWithRetry(params);
       let events = response.events as ConnpassEvent[];
 
       // ハッシュタグでクライアントサイドフィルタ
@@ -73,6 +127,54 @@ export class FeedExecutor {
       const message = error instanceof Error ? error.message : String(error);
       return { feedId, total: 0, newCount: 0, error: message };
     }
+  }
+
+  /**
+   * リトライ付きでAPI呼び出しを実行
+   */
+  private async fetchWithRetry(params: Record<string, unknown>): Promise<{ events: ConnpassEvent[] }> {
+    let lastError: unknown;
+    let delayMs = this.initialDelayMs;
+
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await this.client.searchEvents(params);
+        return response as { events: ConnpassEvent[] };
+      } catch (error) {
+        lastError = error;
+
+        // リトライ対象のエラーでない場合は即座にスロー
+        if (!isRetryableError(error)) {
+          throw error;
+        }
+
+        // 最大リトライ回数に達した場合
+        if (attempt >= this.maxRetries) {
+          logger.warn('FeedExecutor', `API call failed after ${this.maxRetries} retries`, {
+            error: error instanceof Error ? error.message : String(error),
+            attempts: attempt + 1,
+          });
+          throw error;
+        }
+
+        // 次のリトライ前に待機
+        logger.debug('FeedExecutor', `Retrying API call (attempt ${attempt + 1}/${this.maxRetries})`, {
+          error: error instanceof Error ? error.message : String(error),
+          delayMs,
+        });
+        await this.delay(delayMs);
+        delayMs *= this.backoffMultiplier;
+      }
+    }
+
+    throw lastError;
+  }
+
+  /**
+   * 指定ミリ秒待機
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private buildSearchParams(feed: Feed): Record<string, unknown> {
