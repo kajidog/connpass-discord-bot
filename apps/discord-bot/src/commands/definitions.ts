@@ -85,6 +85,7 @@ export const connpassCommand = new SlashCommandBuilder()
       .addSubcommand((sub) => sub.setName('status').setDescription('現在のフィード設定を表示'))
       .addSubcommand((sub) => sub.setName('remove').setDescription('このチャンネルのフィードを削除'))
       .addSubcommand((sub) => sub.setName('run').setDescription('フィードを即時実行'))
+      .addSubcommand((sub) => sub.setName('share').setDescription('現在のフィード設定をCLIコマンド形式で表示'))
   )
 
   // /connpass user サブコマンドグループ

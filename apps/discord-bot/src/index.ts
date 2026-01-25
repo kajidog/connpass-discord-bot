@@ -50,6 +50,7 @@ import {
   handleFeedStatus,
   handleFeedRemove,
   handleFeedRun,
+  handleFeedShare,
 } from './commands/handlers/feed.js';
 import {
   handleUserRegister,
@@ -291,6 +292,9 @@ discordClient.on(Events.InteractionCreate, async (interaction) => {
             break;
           case 'run':
             await handleFeedRun(interaction, feedStore, executor, banStore);
+            break;
+          case 'share':
+            await handleFeedShare(interaction, feedStore);
             break;
         }
         return;
