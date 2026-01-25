@@ -6,25 +6,46 @@ import {
   handleFeedSetCore,
   handleFeedStatusCore,
   handleFeedRemoveCore,
+  ActionType,
   type CommandContext,
   type CommandResponse,
   type FeedSetOptions,
   type IScheduler,
   type IFeedStore,
 } from '@connpass-discord-bot/core';
-import { FileFeedStore } from '@connpass-discord-bot/feed-worker';
+import { FileFeedStore, calculateNextRunTime } from '@connpass-discord-bot/feed-worker';
+import { getLogReader } from './db-adapter.js';
+import { formatLogsAsText } from '../components/FeedLogViewer.js';
 
-// CLI用ダミースケジューラー（実際のスケジューリングは行わない）
+/**
+ * Discord Markdownを除去してプレーンテキストに変換
+ */
+function stripMarkdown(text: string): string {
+  return text
+    // **bold** -> bold
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    // *italic* -> italic
+    .replace(/\*([^*]+)\*/g, '$1')
+    // __underline__ -> underline
+    .replace(/__([^_]+)__/g, '$1')
+    // ~~strikethrough~~ -> strikethrough
+    .replace(/~~([^~]+)~~/g, '$1')
+    // `code` -> code
+    .replace(/`([^`]+)`/g, '$1')
+    // > quote -> quote
+    .replace(/^>\s*/gm, '');
+}
+
+// CLI用スケジューラー（次回実行日時を正しく計算）
 class CLIScheduler implements IScheduler {
   constructor(private readonly store: IFeedStore) {}
 
   async scheduleFeed(channelId: string): Promise<void> {
-    // CLI では次回実行日時を計算するのみ
     const feed = await this.store.get(channelId);
     if (!feed) return;
 
-    // 簡易的に1時間後を設定
-    feed.state.nextRunAt = Date.now() + 60 * 60 * 1000;
+    // cronスケジュールから次回実行日時を計算
+    feed.state.nextRunAt = calculateNextRunTime(feed.config.schedule);
     await this.store.save(feed);
   }
 
@@ -69,37 +90,51 @@ export async function executeCommand(
   const parts = normalized.split(/\s+/);
   
   const group = parts[0]; // "feed"
-  const subcommand = parts[1]; // "set" | "status" | "remove"
-  
+  const subcommand = parts[1]; // "set" | "status" | "remove" | "logs"
+
   if (group !== 'feed') {
     return {
       content: `未対応のコマンドグループ: ${group}\n現在対応: feed`,
       ephemeral: true,
     };
   }
-  
+
   const ctx: CommandContext = {
     channelId,
     userId: 'cli-user',
     guildId: undefined,
   };
-  
+
+  let result: CommandResponse;
+
   switch (subcommand) {
     case 'status':
-      return handleFeedStatusCore(ctx, feedStore);
-      
+      result = await handleFeedStatusCore(ctx, feedStore);
+      break;
+
     case 'remove':
-      return handleFeedRemoveCore(ctx, feedStore, scheduler);
-      
+      result = await handleFeedRemoveCore(ctx, feedStore, scheduler);
+      break;
+
     case 'set':
-      return handleFeedSet(ctx, parts.slice(2), feedStore, scheduler);
-      
+      result = await handleFeedSet(ctx, parts.slice(2), feedStore, scheduler);
+      break;
+
+    case 'logs':
+      return handleLogsCommand(channelId);
+
     default:
       return {
-        content: `未対応のサブコマンド: feed ${subcommand}\n対応: set, status, remove`,
+        content: `未対応のサブコマンド: feed ${subcommand}\n対応: set, status, remove, logs`,
         ephemeral: true,
       };
   }
+
+  // Discord Markdownを除去
+  return {
+    ...result,
+    content: stripMarkdown(result.content),
+  };
 }
 
 /**
@@ -171,5 +206,47 @@ async function handleFeedSet(
 ): Promise<CommandResponse> {
   const options = parseSetOptions(args);
   return handleFeedSetCore(ctx, options, feedStore, scheduler);
+}
+
+/**
+ * /connpass feed logs コマンドを処理
+ */
+async function handleLogsCommand(channelId: string): Promise<CommandResponse> {
+  const logReader = getLogReader();
+
+  if (!logReader) {
+    return {
+      content: 'ログDBに接続できません。\nDB_PATH環境変数を確認してください。',
+      ephemeral: true,
+    };
+  }
+
+  try {
+    // Feed実行に関連するログを取得
+    const logs = await logReader.getActionLogs({
+      channelId,
+      actionTypes: [
+        ActionType.SCHEDULER_EXECUTE,
+        ActionType.SCHEDULER_START,
+        ActionType.SCHEDULER_STOP,
+        ActionType.SCHEDULER_ERROR,
+        ActionType.NOTIFY_SEND,
+        ActionType.NOTIFY_ERROR,
+        ActionType.SCHEDULE_CREATE,
+        ActionType.SCHEDULE_UPDATE,
+        ActionType.SCHEDULE_DELETE,
+      ],
+      limit: 20,
+    });
+
+    const text = formatLogsAsText(logs);
+    return { content: text };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      content: `ログ取得エラー: ${message}`,
+      ephemeral: true,
+    };
+  }
 }
 

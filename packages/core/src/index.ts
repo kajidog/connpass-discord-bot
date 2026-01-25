@@ -32,6 +32,11 @@ export type {
   IUserNotifySentStore,
   UserNotifySent,
 } from './repositories/IUserNotifySentStore.js';
+export type {
+  ILogReader,
+  ActionLogRecord,
+  LogReaderOptions,
+} from './repositories/ILogReader.js';
 
 // AI Model Configuration
 export type { AIProvider, ModelConfig, AIModelsConfig, ChannelModelConfig } from './ai/index.js';
