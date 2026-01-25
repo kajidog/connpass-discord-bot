@@ -87,4 +87,7 @@ export {
   handleFeedSetCore,
   handleFeedStatusCore,
   handleFeedRemoveCore,
+  handleFeedShareCore,
+  handleFeedApplyCore,
+  generateFeedCommand,
 } from './commands/index.js';

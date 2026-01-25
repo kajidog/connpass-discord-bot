@@ -13,6 +13,7 @@ import {
   handleFeedSetCore,
   handleFeedStatusCore,
   handleFeedRemoveCore,
+  handleFeedShareCore,
 } from '@connpass-discord-bot/core';
 import type { Scheduler, FeedExecutor } from '@connpass-discord-bot/feed-worker';
 import { getPrefectureName } from '../../data/prefectures.js';
@@ -181,6 +182,25 @@ export async function handleFeedRemove(
       afterState: undefined,
     });
   }
+
+  // Discord返信
+  await interaction.reply({
+    content: response.content,
+    ephemeral: response.ephemeral ?? false,
+  });
+}
+
+/**
+ * /connpass feed share ハンドラー（Discordアダプター）
+ */
+export async function handleFeedShare(
+  interaction: ChatInputCommandInteraction,
+  store: IFeedStore
+): Promise<void> {
+  const ctx = createCommandContext(interaction);
+
+  // コアロジック呼び出し
+  const response = await handleFeedShareCore(ctx, store);
 
   // Discord返信
   await interaction.reply({

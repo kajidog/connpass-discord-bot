@@ -16,4 +16,7 @@ export {
   handleFeedSetCore,
   handleFeedStatusCore,
   handleFeedRemoveCore,
+  handleFeedShareCore,
+  handleFeedApplyCore,
+  generateFeedCommand,
 } from './feed.js';

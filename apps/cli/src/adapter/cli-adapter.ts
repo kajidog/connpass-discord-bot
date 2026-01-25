@@ -6,6 +6,8 @@ import {
   handleFeedSetCore,
   handleFeedStatusCore,
   handleFeedRemoveCore,
+  handleFeedShareCore,
+  handleFeedApplyCore,
   ActionType,
   type CommandContext,
   type CommandResponse,
@@ -116,12 +118,20 @@ export async function executeCommand(
       result = await handleFeedSet(ctx, parts.slice(2), feedStore, scheduler);
       break;
 
+    case 'share':
+      result = await handleFeedShareCore(ctx, feedStore);
+      break;
+
+    case 'apply':
+      result = await handleFeedApply(parts.slice(2), feedStore, scheduler);
+      break;
+
     case 'logs':
       return handleLogsCommand(channelId);
 
     default:
       return {
-        content: `未対応のサブコマンド: feed ${subcommand}\n対応: set, status, remove, logs`,
+        content: `未対応のサブコマンド: feed ${subcommand}\n対応: set, status, remove, share, apply, logs`,
         ephemeral: true,
       };
   }
@@ -202,6 +212,84 @@ async function handleFeedSet(
 ): Promise<CommandResponse> {
   const options = parseSetOptions(args);
   return handleFeedSetCore(ctx, options, feedStore, scheduler);
+}
+
+/**
+ * feed apply コマンドのオプションをパース
+ * 形式: channels:123,456 schedule:0\ 9\ *\ *\ 1 keywords_and:TypeScript,React
+ */
+function parseApplyOptions(args: string[]): { channelIds: string[]; options: FeedSetOptions } {
+  let channelIds: string[] = [];
+  const options: FeedSetOptions = {
+    schedule: '0 9 * * *', // デフォルト
+  };
+
+  // 引数を key:value 形式でパース
+  // エスケープされたスペース（\ ）を一時的にプレースホルダーに置換
+  const joined = args.join(' ').replace(/\\ /g, '\x00');
+  const matches = joined.matchAll(/(\w+):([^\s]+(?:\s+[^\s:]+)*?)(?=\s+\w+:|$)/g);
+
+  for (const match of matches) {
+    const key = match[1];
+    // プレースホルダーをスペースに戻す
+    const value = match[2].trim().replace(/\x00/g, ' ');
+
+    switch (key) {
+      case 'channels':
+        channelIds = value.split(',').map((s) => s.trim()).filter(Boolean);
+        break;
+      case 'schedule':
+        options.schedule = value;
+        break;
+      case 'custom_schedule':
+        options.customSchedule = value;
+        break;
+      case 'keywords_and':
+        options.keywordsAnd = value;
+        break;
+      case 'keywords_or':
+        options.keywordsOr = value;
+        break;
+      case 'range_days':
+        options.rangeDays = parseInt(value, 10);
+        break;
+      case 'location':
+        options.location = value;
+        break;
+      case 'hashtag':
+        options.hashtag = value;
+        break;
+      case 'owner_nickname':
+        options.ownerNickname = value;
+        break;
+      case 'order':
+        options.order = value as FeedSetOptions['order'];
+        break;
+      case 'min_participants':
+        options.minParticipants = parseInt(value, 10);
+        break;
+      case 'min_limit':
+        options.minLimit = parseInt(value, 10);
+        break;
+      case 'use_ai':
+        options.useAi = value === 'true';
+        break;
+    }
+  }
+
+  return { channelIds, options };
+}
+
+/**
+ * feed apply コマンドを処理
+ */
+async function handleFeedApply(
+  args: string[],
+  feedStore: IFeedStore,
+  scheduler: IScheduler
+): Promise<CommandResponse> {
+  const { channelIds, options } = parseApplyOptions(args);
+  return handleFeedApplyCore(channelIds, options, feedStore, scheduler);
 }
 
 /**

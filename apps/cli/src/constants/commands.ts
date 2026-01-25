@@ -12,6 +12,8 @@ export const COMMAND_SUGGESTIONS = [
   '/connpass feed set use_ai:',
   '/connpass feed remove',
   '/connpass feed logs',
+  '/connpass feed share',
+  '/connpass feed apply channels:',
 ] as const;
 
 export type CommandSuggestion = (typeof COMMAND_SUGGESTIONS)[number];
@@ -80,6 +82,8 @@ export function getCommandDescription(command: string): string {
     '/connpass feed set use_ai:': 'AI要約の有効/無効',
     '/connpass feed remove': 'Feed設定を削除',
     '/connpass feed logs': 'Feed実行ログを表示',
+    '/connpass feed share': '設定をCLIコマンド形式で表示',
+    '/connpass feed apply channels:': '複数チャンネルに設定を適用',
   };
 
   return descriptions[command] || '';

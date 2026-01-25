@@ -253,3 +253,155 @@ export async function handleFeedRemoveCore(
     ephemeral: false,
   };
 }
+
+/**
+ * Feed設定からCLIコマンド文字列を生成
+ * cron式のスペースはバックスラッシュでエスケープ
+ */
+export function generateFeedCommand(config: FeedConfig, targetChannelId?: string): string {
+  const parts: string[] = [];
+  const channelId = targetChannelId ?? config.channelId;
+
+  // channels は必須
+  parts.push(`channels:${channelId}`);
+
+  // schedule（スペースをエスケープ）
+  parts.push(`schedule:${config.schedule.replace(/ /g, '\\ ')}`);
+
+  // 検索範囲日数
+  if (config.rangeDays !== DEFAULTS.RANGE_DAYS) {
+    parts.push(`range_days:${config.rangeDays}`);
+  }
+
+  // ANDキーワード
+  if (config.keywordsAnd?.length) {
+    parts.push(`keywords_and:${config.keywordsAnd.join(',')}`);
+  }
+
+  // ORキーワード
+  if (config.keywordsOr?.length) {
+    parts.push(`keywords_or:${config.keywordsOr.join(',')}`);
+  }
+
+  // 都道府県
+  if (config.location?.length) {
+    parts.push(`location:${config.location.join(',')}`);
+  }
+
+  // ハッシュタグ
+  if (config.hashtag) {
+    parts.push(`hashtag:${config.hashtag}`);
+  }
+
+  // 主催者ニックネーム
+  if (config.ownerNickname) {
+    parts.push(`owner_nickname:${config.ownerNickname}`);
+  }
+
+  // ソート順
+  if (config.order && config.order !== DEFAULTS.ORDER) {
+    parts.push(`order:${config.order}`);
+  }
+
+  // 規模フィルタ
+  if (config.minParticipantCount !== undefined) {
+    parts.push(`min_participants:${config.minParticipantCount}`);
+  }
+
+  if (config.minLimit !== undefined) {
+    parts.push(`min_limit:${config.minLimit}`);
+  }
+
+  // AI機能
+  if (config.useAi) {
+    parts.push(`use_ai:true`);
+  }
+
+  return `/connpass feed apply ${parts.join(' ')}`;
+}
+
+/**
+ * /connpass feed share コアハンドラー
+ */
+export async function handleFeedShareCore(
+  ctx: CommandContext,
+  store: IFeedStore
+): Promise<CommandResponse> {
+  const { channelId } = ctx;
+  const feed = await store.get(channelId);
+
+  if (!feed) {
+    return {
+      content: 'このチャンネルにはフィードが設定されていません。\n`/connpass feed set` で設定してください。',
+      ephemeral: true,
+    };
+  }
+
+  const command = generateFeedCommand(feed.config);
+
+  const content = [
+    'このチャンネルのFeed設定をコピーするコマンド:',
+    '',
+    `\`${command}\``,
+    '',
+    '複数チャンネルに適用する場合はchannelsをカンマ区切りで指定してください',
+  ].join('\n');
+
+  return {
+    content,
+    ephemeral: false,
+  };
+}
+
+/**
+ * /connpass feed apply コアハンドラー（CLI用）
+ * 複数チャンネルにFeed設定を一括適用
+ */
+export async function handleFeedApplyCore(
+  channelIds: string[],
+  options: FeedSetOptions,
+  store: IFeedStore,
+  scheduler: IScheduler
+): Promise<CommandResponse> {
+  if (channelIds.length === 0) {
+    return {
+      content: 'チャンネルIDが指定されていません。\n形式: /connpass feed apply channels:123,456 schedule:...',
+      ephemeral: true,
+    };
+  }
+
+  const results: string[] = [];
+  let successCount = 0;
+  let errorCount = 0;
+
+  for (const channelId of channelIds) {
+    const ctx: CommandContext = {
+      channelId,
+      userId: 'cli-user',
+      guildId: undefined,
+    };
+
+    try {
+      const response = await handleFeedSetCore(ctx, options, store, scheduler);
+      if (response.ephemeral) {
+        // エラーの場合
+        results.push(`❌ ${channelId}: ${response.content}`);
+        errorCount++;
+      } else {
+        results.push(`✅ ${channelId}: 設定完了`);
+        successCount++;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      results.push(`❌ ${channelId}: ${message}`);
+      errorCount++;
+    }
+  }
+
+  const summary = `Feed設定を ${channelIds.length} チャンネルに適用しました（成功: ${successCount}, 失敗: ${errorCount}）`;
+
+  return {
+    content: [summary, '', ...results].join('\n'),
+    ephemeral: false,
+  };
+}
