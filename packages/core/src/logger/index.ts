@@ -16,3 +16,5 @@ export type {
 } from './types.js';
 
 export { Logger, ConsoleLogWriter, createComponentLogger } from './Logger.js';
+export { InMemoryLogWriter } from './InMemoryLogWriter.js';
+export type { InMemoryLogEntry, InMemoryActionLogEntry, LogFilterOptions } from './InMemoryLogWriter.js';

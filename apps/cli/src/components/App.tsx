@@ -1,17 +1,21 @@
 /**
  * メインアプリケーションコンポーネント
- * Claude Code風のログ永続表示UIを実装
+ * メインメニューから3つの機能を選択可能
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import Spinner from 'ink-spinner';
 import { Client, GatewayIntentBits, type Guild, type TextChannel } from 'discord.js';
+import { Logger, InMemoryLogWriter } from '@connpass-discord-bot/core';
+import { MainMenu, type MenuOption } from './MainMenu.js';
 import { ServerSelect } from './ServerSelect.js';
 import { ChannelSelect } from './ChannelSelect.js';
 import { CommandInputWithSuggestions } from './CommandInputWithSuggestions.js';
 import { Header } from './Header.js';
 import { StatusBar, getStatusHints } from './StatusBar.js';
+import { ConfigViewer } from './ConfigViewer.js';
+import { SystemLogViewer } from './SystemLogViewer.js';
 import {
   SessionLogView,
   createLogEntry,
@@ -20,7 +24,22 @@ import {
 import type { CommandResponse } from '@connpass-discord-bot/core';
 import { executeCommand } from '../adapter/cli-adapter.js';
 
-type AppState = 'loading' | 'server-select' | 'channel-select' | 'command' | 'error';
+type AppState =
+  | 'loading'
+  | 'main-menu'
+  | 'server-select'
+  | 'channel-select'
+  | 'command'
+  | 'config-view'
+  | 'log-view'
+  | 'error';
+
+// インメモリログライター（シングルトン）
+const inMemoryLogWriter = new InMemoryLogWriter(500);
+
+// ロガーにインメモリライターを追加
+const logger = Logger.getInstance();
+logger.addWriter(inMemoryLogWriter);
 
 export function App(): React.ReactElement {
   const { exit } = useApp();
@@ -68,6 +87,10 @@ export function App(): React.ReactElement {
       } else if (state === 'command') {
         setState('channel-select');
         // ログはリセットしない（セッション継続）
+      } else if (state === 'server-select') {
+        setState('main-menu');
+      } else if (state === 'config-view' || state === 'log-view') {
+        setState('main-menu');
       }
       return;
     }
@@ -86,8 +109,8 @@ export function App(): React.ReactElement {
   useEffect(() => {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) {
-      setError('DISCORD_BOT_TOKEN が設定されていません');
-      setState('error');
+      // トークンがなくてもメニューは表示可能（Discordの設定だけ使えない）
+      setState('main-menu');
       return;
     }
 
@@ -99,23 +122,45 @@ export function App(): React.ReactElement {
       const guildList = Array.from(discordClient.guilds.cache.values());
       setGuilds(guildList);
       setClient(discordClient);
-      setState('server-select');
+      setState('main-menu');
     });
 
     discordClient.on('error', (err) => {
       setError(`Discord接続エラー: ${err.message}`);
-      setState('error');
+      // エラーでもメニューは表示
+      setState('main-menu');
     });
 
     discordClient.login(token).catch((err) => {
       setError(`ログイン失敗: ${err.message}`);
-      setState('error');
+      // エラーでもメニューは表示
+      setState('main-menu');
     });
 
     return () => {
       discordClient.destroy();
     };
   }, []);
+
+  // メインメニュー選択
+  const handleMenuSelect = useCallback((option: MenuOption) => {
+    switch (option) {
+      case 'discord':
+        if (!client) {
+          setError('DISCORD_BOT_TOKEN が設定されていません');
+          setState('error');
+        } else {
+          setState('server-select');
+        }
+        break;
+      case 'config':
+        setState('config-view');
+        break;
+      case 'logs':
+        setState('log-view');
+        break;
+    }
+  }, [client]);
 
   // サーバー選択
   const handleServerSelect = useCallback((guild: Guild) => {
@@ -189,11 +234,13 @@ export function App(): React.ReactElement {
 
   return (
     <Box flexDirection="column" padding={1}>
-      {/* ヘッダー */}
-      <Header
-        serverName={selectedGuild?.name}
-        channelName={selectedChannel?.name}
-      />
+      {/* メインメニュー以外ではヘッダー表示 */}
+      {state !== 'main-menu' && state !== 'config-view' && state !== 'log-view' && (
+        <Header
+          serverName={selectedGuild?.name}
+          channelName={selectedChannel?.name}
+        />
+      )}
 
       {/* メインコンテンツ */}
       {state === 'loading' && (
@@ -205,10 +252,32 @@ export function App(): React.ReactElement {
         </Box>
       )}
 
+      {state === 'main-menu' && (
+        <Box flexDirection="column">
+          {error && (
+            <Box marginBottom={1}>
+              <Text color="yellow">⚠️ {error}</Text>
+            </Box>
+          )}
+          <MainMenu onSelect={handleMenuSelect} />
+        </Box>
+      )}
+
       {state === 'error' && (
         <Box flexDirection="column">
           <Text color="red">エラー: {error}</Text>
+          <Box marginTop={1}>
+            <Text color="gray">Esc: メニューに戻る</Text>
+          </Box>
         </Box>
+      )}
+
+      {state === 'config-view' && (
+        <ConfigViewer />
+      )}
+
+      {state === 'log-view' && (
+        <SystemLogViewer logWriter={inMemoryLogWriter} />
       )}
 
       {state === 'server-select' && (
@@ -246,8 +315,10 @@ export function App(): React.ReactElement {
         </Box>
       )}
 
-      {/* ステータスバー */}
-      <StatusBar hints={statusHints} />
+      {/* ステータスバー（メインメニュー以外で表示） */}
+      {state !== 'main-menu' && state !== 'config-view' && state !== 'log-view' && (
+        <StatusBar hints={statusHints} />
+      )}
     </Box>
   );
 }
