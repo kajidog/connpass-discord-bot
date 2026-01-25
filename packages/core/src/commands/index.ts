@@ -19,4 +19,5 @@ export {
   handleFeedShareCore,
   handleFeedApplyCore,
   generateFeedCommand,
+  generateDiscordFeedCommand,
 } from './feed.js';

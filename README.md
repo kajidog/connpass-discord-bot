@@ -137,20 +137,32 @@ docker compose run --rm -it bot pnpm --filter @connpass-discord-bot/cli start
 - `min_participants`: 参加人数が指定人数以上
 - `min_limit`: 募集人数が指定人数以上
 
-### フィード設定の一括適用（CLI）
+### フィード設定のエクスポートと一括適用
 
-`/connpass feed share` で現在の設定をCLIコマンド形式で出力し、`/connpass feed apply` で複数チャンネルに一括適用できます。
+`/connpass feed share` で現在の設定をコマンド形式で出力します。Discord用とCLI用の2種類が表示されます。
+
+```
+📋 このチャンネルのFeed設定
+
+Discord用（このチャンネルに適用）:
+/connpass feed set schedule:0 9 * * 1 keywords_and:TypeScript,React
+
+CLI用（複数チャンネル一括適用）:
+/connpass feed apply channels:123456 schedule:0\ 9\ *\ *\ 1 keywords_and:TypeScript,React
+
+💡 CLIで複数チャンネルに適用する場合は channels: をカンマ区切りで指定
+```
+
+**Discord**: 出力されたコマンドをそのままコピペして別チャンネルに適用できます。
+
+**CLI**: `feed apply` コマンドで複数チャンネルに一括適用できます。
 
 ```bash
-# 1. Discordまたは CLIで設定をエクスポート
-/connpass feed share
-# 出力例: /connpass feed apply channels:123456 schedule:0\ 9\ *\ *\ 1 keywords_and:TypeScript,React
-
-# 2. CLIで複数チャンネルに適用
+# 複数チャンネルに適用
 /connpass feed apply channels:123456,789012,345678 schedule:0\ 9\ *\ *\ 1 keywords_and:TypeScript,React
 ```
 
-**applyコマンドのオプション**:
+**applyコマンドのオプション**（CLIのみ）:
 - `channels:` - 適用先チャンネルID（カンマ区切りで複数指定）
 - `schedule:` - cron式（スペースは `\ ` でエスケープ）
 - `keywords_and:` / `keywords_or:` - 検索キーワード

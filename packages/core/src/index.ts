@@ -90,4 +90,5 @@ export {
   handleFeedShareCore,
   handleFeedApplyCore,
   generateFeedCommand,
+  generateDiscordFeedCommand,
 } from './commands/index.js';

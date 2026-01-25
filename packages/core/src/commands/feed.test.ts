@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateFeedCommand } from './feed.js';
+import { generateFeedCommand, generateDiscordFeedCommand } from './feed.js';
 import type { FeedConfig } from '../domain/types.js';
 
 describe('generateFeedCommand', () => {
@@ -247,5 +247,76 @@ describe('generateFeedCommand', () => {
     expect(result).toBe(
       '/connpass feed apply channels:test-channel schedule:0\\ 9\\ *\\ *\\ 1 range_days:30 keywords_and:TypeScript,React keywords_or:Vue,Angular location:東京都 hashtag:frontend owner_nickname:test-owner order:updated_desc min_participants:10 min_limit:50 use_ai:true'
     );
+  });
+});
+
+describe('generateDiscordFeedCommand', () => {
+  it('should generate Discord command without escaping spaces', () => {
+    const config: FeedConfig = {
+      id: 'test-channel',
+      channelId: 'test-channel',
+      schedule: '0 9 * * 1',
+      rangeDays: 14,
+    };
+
+    const result = generateDiscordFeedCommand(config);
+
+    expect(result).toContain('/connpass feed set');
+    expect(result).toContain('schedule:0 9 * * 1');
+    expect(result).not.toContain('channels:');
+  });
+
+  it('should not escape spaces in cron expression (for Discord)', () => {
+    const config: FeedConfig = {
+      id: 'test-channel',
+      channelId: 'test-channel',
+      schedule: '0 9 * * 1-5',
+      rangeDays: 14,
+    };
+
+    const result = generateDiscordFeedCommand(config);
+
+    expect(result).toContain('schedule:0 9 * * 1-5');
+    expect(result).not.toContain('\\');
+  });
+
+  it('should include all options', () => {
+    const config: FeedConfig = {
+      id: 'test-channel',
+      channelId: 'test-channel',
+      schedule: '0 9 * * 1',
+      rangeDays: 30,
+      keywordsAnd: ['TypeScript', 'React'],
+      keywordsOr: ['Vue', 'Angular'],
+      location: ['東京都'],
+      hashtag: 'frontend',
+      ownerNickname: 'test-owner',
+      order: 'updated_desc',
+      minParticipantCount: 10,
+      minLimit: 50,
+      useAi: true,
+    };
+
+    const result = generateDiscordFeedCommand(config);
+
+    expect(result).toBe(
+      '/connpass feed set schedule:0 9 * * 1 range_days:30 keywords_and:TypeScript,React keywords_or:Vue,Angular location:東京都 hashtag:frontend owner_nickname:test-owner order:updated_desc min_participants:10 min_limit:50 use_ai:true'
+    );
+  });
+
+  it('should not include default values', () => {
+    const config: FeedConfig = {
+      id: 'test-channel',
+      channelId: 'test-channel',
+      schedule: '0 9 * * *',
+      rangeDays: 14,
+      order: 'started_asc',
+    };
+
+    const result = generateDiscordFeedCommand(config);
+
+    expect(result).toBe('/connpass feed set schedule:0 9 * * *');
+    expect(result).not.toContain('range_days:');
+    expect(result).not.toContain('order:');
   });
 });

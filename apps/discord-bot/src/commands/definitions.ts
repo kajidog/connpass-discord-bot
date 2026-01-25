@@ -19,22 +19,9 @@ export const connpassCommand = new SlashCommandBuilder()
           .addStringOption((o) =>
             o
               .setName('schedule')
-              .setDescription('配信スケジュール')
+              .setDescription('配信スケジュール（cron式 例: 0 9 * * 1 = 毎週月曜9時）')
               .setRequired(true)
-              .addChoices(
-                { name: '毎日 9:00', value: '0 9 * * *' },
-                { name: '毎日 12:00', value: '0 12 * * *' },
-                { name: '毎日 18:00', value: '0 18 * * *' },
-                { name: '平日 9:00', value: '0 9 * * 1-5' },
-                { name: '毎週月曜 9:00', value: '0 9 * * 1' },
-                { name: '毎週金曜 18:00', value: '0 18 * * 5' },
-                { name: 'カスタム（cron式を指定）', value: 'custom' }
-              )
-          )
-          .addStringOption((o) =>
-            o
-              .setName('custom_schedule')
-              .setDescription('カスタムcron式（例: "0 9 * * 1" = 毎週月曜9時）※scheduleで「カスタム」選択時のみ')
+              .setAutocomplete(true)
           )
           .addStringOption((o) =>
             o.setName('keywords_and').setDescription('AND検索キーワード（カンマ/スペース区切り）')
@@ -60,11 +47,7 @@ export const connpassCommand = new SlashCommandBuilder()
             o
               .setName('order')
               .setDescription('ソート順')
-              .addChoices(
-                { name: '更新日時（新しい順）', value: 'updated_desc' },
-                { name: '開始日時（早い順）', value: 'started_asc' },
-                { name: '開始日時（遅い順）', value: 'started_desc' }
-              )
+              .setAutocomplete(true)
           )
           .addIntegerOption((o) =>
             o

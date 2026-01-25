@@ -46,7 +46,6 @@ function feedConfigToLogObject(config: FeedConfig): Record<string, unknown> {
 function extractFeedSetOptions(interaction: ChatInputCommandInteraction): FeedSetOptions {
   return {
     schedule: interaction.options.getString('schedule', true),
-    customSchedule: interaction.options.getString('custom_schedule') ?? undefined,
     keywordsAnd: interaction.options.getString('keywords_and') ?? undefined,
     keywordsOr: interaction.options.getString('keywords_or') ?? undefined,
     rangeDays: interaction.options.getInteger('range_days') ?? undefined,
