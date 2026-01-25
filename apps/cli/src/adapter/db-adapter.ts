@@ -4,14 +4,16 @@
 
 import type { ILogReader } from '@connpass-discord-bot/core';
 import { createDatabase, DrizzleLogReader } from '@connpass-discord-bot/feed-worker';
+import { resolveStorageConfig } from './storage.js';
 
 let logReader: DrizzleLogReader | null = null;
 
 /**
  * DBパスを取得
  */
-function getDbPath(): string {
-  return process.env.DB_PATH || './data/connpass.db';
+function getDatabaseUrl(): string {
+  const { databaseUrl } = resolveStorageConfig();
+  return databaseUrl;
 }
 
 /**
@@ -23,8 +25,13 @@ export function getLogReader(): ILogReader | null {
   }
 
   try {
-    const dbPath = getDbPath();
-    const { db } = createDatabase(dbPath);
+    const { storageType } = resolveStorageConfig();
+    if (storageType !== 'sqlite') {
+      return null;
+    }
+
+    const databaseUrl = getDatabaseUrl();
+    const { db } = createDatabase(databaseUrl);
     logReader = new DrizzleLogReader(db);
     return logReader;
   } catch (err) {

@@ -30,8 +30,10 @@ pnpm --filter @connpass-discord-bot/cli build
 | 変数名 | 説明 | デフォルト |
 |--------|------|-----------|
 | `DISCORD_BOT_TOKEN` | Discord Bot Token | 必須 |
+| `STORAGE_TYPE` | ストレージ種別（`file` or `sqlite`） | `file` |
 | `JOB_STORE_DIR` | Feed設定の保存先ディレクトリ | `./data` |
-| `DB_PATH` | SQLiteデータベースのパス | `./data/connpass.db` |
+| `DATABASE_URL` | SQLiteデータベースのパス | `${JOB_STORE_DIR}/app.db` |
+| `DB_PATH` | SQLiteデータベースのパス（互換用/非推奨） | `./data/connpass.db` |
 
 ## 使用方法
 
@@ -138,8 +140,13 @@ DISCORD_BOT_TOKEN=your_token pnpm dev
 
 ### DBに接続できない
 
-`DB_PATH` 環境変数で正しいデータベースパスを指定してください。
+`DATABASE_URL`（または互換用の `DB_PATH`）で正しいデータベースパスを指定してください。
 ログ表示機能には feed-worker が使用するSQLiteデータベースが必要です。
+
+### Discord Botと同じFeedを使いたい
+
+- **SQLiteを使っている場合**: `STORAGE_TYPE=sqlite` と `DATABASE_URL` をBotと同じ値にしてください。
+- **Fileストレージの場合**: `JOB_STORE_DIR` をBotと同じディレクトリに合わせてください（相対パスの場合、起動ディレクトリが違うと別扱いになります）。
 
 ### Botがサーバーに接続できない
 
