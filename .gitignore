@@ -20,7 +20,6 @@ coverage/
 .env.*.local
 
 # Local data
-/data/
 docker-data/
 compose-data/
 
@@ -33,3 +32,4 @@ Thumbs.db
 
 # TypeScript incremental build info
 *.tsbuildinfo
+app.db

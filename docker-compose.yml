@@ -22,6 +22,7 @@ services:
       - ./apps:/app/apps
       - ./packages:/app/packages
       - /app/apps/discord-bot/node_modules
+      - /app/apps/cli/node_modules
       - /app/apps/ai-agent/node_modules
       - /app/packages/feed-worker/node_modules
       - /app/packages/core/node_modules
@@ -30,4 +31,5 @@ services:
 volumes:
   bot-data:
 
-
+    # CLI使用例（インタラクティブモード）:
+    # docker compose run --rm -it bot pnpm --filter @connpass-discord-bot/cli start

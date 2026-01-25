@@ -1,15 +1,27 @@
 import type { ChatInputCommandInteraction } from 'discord.js';
-import type { Feed, FeedConfig, IFeedStore, IBanStore } from '@connpass-discord-bot/core';
-import { DEFAULTS, Logger, LogLevel, ActionType } from '@connpass-discord-bot/core';
+import type {
+  FeedConfig,
+  IFeedStore,
+  IBanStore,
+  FeedSetOptions,
+  CommandContext,
+} from '@connpass-discord-bot/core';
+import {
+  Logger,
+  LogLevel,
+  ActionType,
+  handleFeedSetCore,
+  handleFeedStatusCore,
+  handleFeedRemoveCore,
+} from '@connpass-discord-bot/core';
 import type { Scheduler, FeedExecutor } from '@connpass-discord-bot/feed-worker';
-import { CronExpressionParser } from 'cron-parser';
 import { getPrefectureName } from '../../data/prefectures.js';
 import { isBannedUser } from '../../security/permissions.js';
 
 const logger = Logger.getInstance();
 
 /**
- * FeedConfigを比較可能なオブジェクトに変換
+ * FeedConfigを比較可能なオブジェクトに変換（ログ用）
  */
 function feedConfigToLogObject(config: FeedConfig): Record<string, unknown> {
   return {
@@ -28,72 +40,38 @@ function feedConfigToLogObject(config: FeedConfig): Record<string, unknown> {
 }
 
 /**
- * キーワード文字列をパース（カンマ/スペース区切り）
+ * Discordインタラクションからオプションを抽出
  */
-function parseKeywords(input: string | null): string[] | undefined {
-  if (!input) return undefined;
-  return input
-    .split(/[,\s]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+function extractFeedSetOptions(interaction: ChatInputCommandInteraction): FeedSetOptions {
+  return {
+    schedule: interaction.options.getString('schedule', true),
+    customSchedule: interaction.options.getString('custom_schedule') ?? undefined,
+    keywordsAnd: interaction.options.getString('keywords_and') ?? undefined,
+    keywordsOr: interaction.options.getString('keywords_or') ?? undefined,
+    rangeDays: interaction.options.getInteger('range_days') ?? undefined,
+    location: interaction.options.getString('location') ?? undefined,
+    hashtag: interaction.options.getString('hashtag') ?? undefined,
+    ownerNickname: interaction.options.getString('owner_nickname') ?? undefined,
+    order: (interaction.options.getString('order') as FeedConfig['order']) ?? undefined,
+    minParticipants: interaction.options.getInteger('min_participants') ?? undefined,
+    minLimit: interaction.options.getInteger('min_limit') ?? undefined,
+    useAi: interaction.options.getBoolean('use_ai') ?? undefined,
+  };
 }
 
 /**
- * cron式を分かりやすい日本語に変換
+ * DiscordインタラクションからCommandContextを生成
  */
-const SCHEDULE_LABELS: Record<string, string> = {
-  '0 9 * * *': '毎日 9:00',
-  '0 12 * * *': '毎日 12:00',
-  '0 18 * * *': '毎日 18:00',
-  '0 9 * * 1-5': '平日 9:00',
-  '0 9 * * 1': '毎週月曜 9:00',
-  '0 18 * * 5': '毎週金曜 18:00',
-};
-
-function formatSchedule(schedule: string): string {
-  return SCHEDULE_LABELS[schedule] ?? schedule;
+function createCommandContext(interaction: ChatInputCommandInteraction): CommandContext {
+  return {
+    channelId: interaction.channelId,
+    userId: interaction.user.id,
+    guildId: interaction.guildId ?? undefined,
+  };
 }
 
 /**
- * 日時をJSTでフォーマット
- */
-function formatDateJST(timestamp: number): string {
-  return new Date(timestamp).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-}
-
-function formatSizeFilter(minParticipants?: number, minLimit?: number): string | null {
-  if (minParticipants === undefined && minLimit === undefined) {
-    return null;
-  }
-
-  if (minParticipants !== undefined && minLimit !== undefined) {
-    return `**規模フィルタ**: 参加者 ${minParticipants}人以上 または 募集人数 ${minLimit}人以上`;
-  }
-
-  if (minParticipants !== undefined) {
-    return `**規模フィルタ**: 参加者 ${minParticipants}人以上`;
-  }
-
-  return `**規模フィルタ**: 募集人数 ${minLimit}人以上`;
-}
-
-/**
- * cron式の妥当性を検証
- */
-function validateCron(schedule: string): { valid: boolean; error?: string } {
-  try {
-    CronExpressionParser.parse(schedule);
-    return { valid: true };
-  } catch (error) {
-    return {
-      valid: false,
-      error: error instanceof Error ? error.message : 'Invalid cron expression',
-    };
-  }
-}
-
-/**
- * /connpass feed set ハンドラー
+ * /connpass feed set ハンドラー（Discordアダプター）
  */
 export async function handleFeedSet(
   interaction: ChatInputCommandInteraction,
@@ -101,6 +79,7 @@ export async function handleFeedSet(
   scheduler: Scheduler,
   banStore: IBanStore
 ): Promise<void> {
+  // Discord固有: BANチェック
   if (await isBannedUser(banStore, interaction.user.id)) {
     await interaction.reply({
       content: '⛔ あなたはBANされているため、Feedの変更はできません。',
@@ -108,159 +87,62 @@ export async function handleFeedSet(
     });
     return;
   }
-  const channelId = interaction.channelId;
 
-  // オプション取得
-  const scheduleOption = interaction.options.getString('schedule', true);
-  const customSchedule = interaction.options.getString('custom_schedule');
+  const ctx = createCommandContext(interaction);
+  const options = extractFeedSetOptions(interaction);
 
-  // カスタム選択時は custom_schedule を使用
-  let schedule: string;
-  if (scheduleOption === 'custom') {
-    if (!customSchedule) {
-      await interaction.reply({
-        content: '「カスタム」を選択した場合は `custom_schedule` にcron式を入力してください。\n例: `0 9 * * 1` = 毎週月曜9時',
-        ephemeral: true,
+  // 既存フィードを取得（ログ用）
+  const existingFeed = await store.get(ctx.channelId);
+
+  // コアロジック呼び出し
+  const response = await handleFeedSetCore(ctx, options, store, scheduler, getPrefectureName);
+
+  // Discord固有: ログ記録
+  if (!response.ephemeral) {
+    const savedFeed = await store.get(ctx.channelId);
+    if (savedFeed) {
+      logger.logAction({
+        level: LogLevel.INFO,
+        actionType: existingFeed ? ActionType.SCHEDULE_UPDATE : ActionType.SCHEDULE_CREATE,
+        component: 'Feed',
+        message: existingFeed ? 'Feed schedule updated' : 'Feed schedule created',
+        userId: interaction.user.id,
+        guildId: interaction.guildId ?? undefined,
+        channelId: ctx.channelId,
+        beforeState: existingFeed ? feedConfigToLogObject(existingFeed.config) : undefined,
+        afterState: feedConfigToLogObject(savedFeed.config),
       });
-      return;
     }
-    schedule = customSchedule;
-  } else {
-    schedule = scheduleOption;
-  }
-  const keywordsAnd = parseKeywords(interaction.options.getString('keywords_and'));
-  const keywordsOr = parseKeywords(interaction.options.getString('keywords_or'));
-  const rangeDays = interaction.options.getInteger('range_days') ?? DEFAULTS.RANGE_DAYS;
-  const location = parseKeywords(interaction.options.getString('location'));
-  const hashtag = interaction.options.getString('hashtag') ?? undefined;
-  const ownerNickname = interaction.options.getString('owner_nickname') ?? undefined;
-  const order =
-    (interaction.options.getString('order') as FeedConfig['order']) ?? DEFAULTS.ORDER;
-  const minParticipantCount = interaction.options.getInteger('min_participants') ?? undefined;
-  const minLimit = interaction.options.getInteger('min_limit') ?? undefined;
-  const useAi = interaction.options.getBoolean('use_ai') ?? false;
-
-  // cron式検証
-  const cronValidation = validateCron(schedule);
-  if (!cronValidation.valid) {
-    await interaction.reply({
-      content: `無効なcron式です: ${cronValidation.error}`,
-      ephemeral: true,
-    });
-    return;
   }
 
-  // 既存フィードを取得または新規作成
-  const existingFeed = await store.get(channelId);
-
-  const feed: Feed = {
-    config: {
-      id: channelId,
-      channelId,
-      schedule,
-      rangeDays,
-      keywordsAnd,
-      keywordsOr,
-      location,
-      hashtag,
-      ownerNickname,
-      order,
-      minParticipantCount,
-      minLimit,
-      useAi,
-    },
-    state: existingFeed?.state ?? { sentEvents: {} },
-  };
-
-  await store.save(feed);
-  await scheduler.scheduleFeed(channelId);
-
-  // スケジュール変更ログを記録
-  logger.logAction({
-    level: LogLevel.INFO,
-    actionType: existingFeed ? ActionType.SCHEDULE_UPDATE : ActionType.SCHEDULE_CREATE,
-    component: 'Feed',
-    message: existingFeed ? 'Feed schedule updated' : 'Feed schedule created',
-    userId: interaction.user.id,
-    guildId: interaction.guildId ?? undefined,
-    channelId,
-    beforeState: existingFeed ? feedConfigToLogObject(existingFeed.config) : undefined,
-    afterState: feedConfigToLogObject(feed.config),
-  });
-
-  // 次回実行日時を取得
-  const savedFeed = await store.get(channelId);
-  const nextRunAt = savedFeed?.state.nextRunAt;
-
-  // 設定内容を表示
-  const settings = [
-    `**スケジュール**: ${formatSchedule(schedule)}`,
-    `**検索範囲**: ${rangeDays}日`,
-    keywordsAnd?.length ? `**ANDキーワード**: ${keywordsAnd.join(', ')}` : null,
-    keywordsOr?.length ? `**ORキーワード**: ${keywordsOr.join(', ')}` : null,
-    location?.length ? `**都道府県**: ${location.map(getPrefectureName).join(', ')}` : null,
-    hashtag ? `**ハッシュタグ**: #${hashtag}` : null,
-    ownerNickname ? `**主催者**: ${ownerNickname}` : null,
-    `**ソート順**: ${order}`,
-    formatSizeFilter(minParticipantCount, minLimit),
-    '',
-    `**次回実行**: ${nextRunAt ? formatDateJST(nextRunAt) : '未設定'}`,
-  ]
-    .filter(Boolean)
-    .join('\n');
-
+  // Discord返信
   await interaction.reply({
-    content: `フィード設定を${existingFeed ? '更新' : '追加'}しました。\n\n${settings}`,
-    ephemeral: false,
+    content: response.content,
+    ephemeral: response.ephemeral ?? false,
   });
 }
 
 /**
- * /connpass feed status ハンドラー
+ * /connpass feed status ハンドラー（Discordアダプター）
  */
 export async function handleFeedStatus(
   interaction: ChatInputCommandInteraction,
   store: IFeedStore
 ): Promise<void> {
-  const channelId = interaction.channelId;
-  const feed = await store.get(channelId);
+  const ctx = createCommandContext(interaction);
 
-  if (!feed) {
-    await interaction.reply({
-      content: 'このチャンネルにはフィードが設定されていません。\n`/connpass feed set` で設定してください。',
-      ephemeral: true,
-    });
-    return;
-  }
+  // コアロジック呼び出し
+  const response = await handleFeedStatusCore(ctx, store, getPrefectureName);
 
-  const { config, state } = feed;
-
-  const settings = [
-    `**スケジュール**: ${formatSchedule(config.schedule)}`,
-    `**検索範囲**: ${config.rangeDays}日`,
-    config.keywordsAnd?.length ? `**ANDキーワード**: ${config.keywordsAnd.join(', ')}` : null,
-    config.keywordsOr?.length ? `**ORキーワード**: ${config.keywordsOr.join(', ')}` : null,
-    config.location?.length ? `**都道府県**: ${config.location.map(getPrefectureName).join(', ')}` : null,
-    config.hashtag ? `**ハッシュタグ**: #${config.hashtag}` : null,
-    config.ownerNickname ? `**主催者**: ${config.ownerNickname}` : null,
-    `**ソート順**: ${config.order ?? DEFAULTS.ORDER}`,
-    formatSizeFilter(config.minParticipantCount, config.minLimit),
-    '',
-    `**最終実行**: ${state.lastRunAt ? formatDateJST(state.lastRunAt) : '未実行'}`,
-    `**次回実行**: ${state.nextRunAt ? formatDateJST(state.nextRunAt) : '未設定'}`,
-    `**送信済みイベント数**: ${Object.keys(state.sentEvents).length}`,
-  ]
-    .filter((s) => s !== null)
-    .join('\n');
-
+  // Discord返信
   await interaction.reply({
-    content: `**このチャンネルのフィード設定**\n\n${settings}`,
-    ephemeral: false,
+    content: response.content,
+    ephemeral: response.ephemeral ?? false,
   });
 }
 
 /**
- * /connpass feed remove ハンドラー
+ * /connpass feed remove ハンドラー（Discordアダプター）
  */
 export async function handleFeedRemove(
   interaction: ChatInputCommandInteraction,
@@ -268,6 +150,7 @@ export async function handleFeedRemove(
   scheduler: Scheduler,
   banStore: IBanStore
 ): Promise<void> {
+  // Discord固有: BANチェック
   if (await isBannedUser(banStore, interaction.user.id)) {
     await interaction.reply({
       content: '⛔ あなたはBANされているため、Feedの変更はできません。',
@@ -275,41 +158,40 @@ export async function handleFeedRemove(
     });
     return;
   }
-  const channelId = interaction.channelId;
-  const feed = await store.get(channelId);
 
-  if (!feed) {
-    await interaction.reply({
-      content: 'このチャンネルにはフィードが設定されていません。',
-      ephemeral: true,
+  const ctx = createCommandContext(interaction);
+
+  // 既存フィードを取得（ログ用）
+  const existingFeed = await store.get(ctx.channelId);
+
+  // コアロジック呼び出し
+  const response = await handleFeedRemoveCore(ctx, store, scheduler);
+
+  // Discord固有: ログ記録
+  if (!response.ephemeral && existingFeed) {
+    logger.logAction({
+      level: LogLevel.INFO,
+      actionType: ActionType.SCHEDULE_DELETE,
+      component: 'Feed',
+      message: 'Feed schedule deleted',
+      userId: interaction.user.id,
+      guildId: interaction.guildId ?? undefined,
+      channelId: ctx.channelId,
+      beforeState: feedConfigToLogObject(existingFeed.config),
+      afterState: undefined,
     });
-    return;
   }
 
-  await scheduler.unscheduleFeed(channelId);
-  await store.delete(channelId);
-
-  // スケジュール削除ログを記録
-  logger.logAction({
-    level: LogLevel.INFO,
-    actionType: ActionType.SCHEDULE_DELETE,
-    component: 'Feed',
-    message: 'Feed schedule deleted',
-    userId: interaction.user.id,
-    guildId: interaction.guildId ?? undefined,
-    channelId,
-    beforeState: feedConfigToLogObject(feed.config),
-    afterState: undefined,
-  });
-
+  // Discord返信
   await interaction.reply({
-    content: 'フィード設定を削除しました。',
-    ephemeral: false,
+    content: response.content,
+    ephemeral: response.ephemeral ?? false,
   });
 }
 
 /**
- * /connpass feed run ハンドラー
+ * /connpass feed run ハンドラー（Discord固有 - コア化不要）
+ * FeedExecutorはDiscord sinkに依存するため、そのまま残す
  */
 export async function handleFeedRun(
   interaction: ChatInputCommandInteraction,
@@ -317,6 +199,7 @@ export async function handleFeedRun(
   executor: FeedExecutor,
   banStore: IBanStore
 ): Promise<void> {
+  // Discord固有: BANチェック
   if (await isBannedUser(banStore, interaction.user.id)) {
     await interaction.reply({
       content: '⛔ あなたはBANされているため、Feedの変更はできません。',
@@ -324,6 +207,7 @@ export async function handleFeedRun(
     });
     return;
   }
+
   const channelId = interaction.channelId;
   const feed = await store.get(channelId);
 

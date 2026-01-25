@@ -9,11 +9,33 @@ export class DrizzleFeedStore implements IFeedStore {
   async save(feed: Feed): Promise<void> {
     const { config, state } = feed;
 
-    await this.db.transaction(async (tx) => {
-      await tx
-        .insert(feeds)
-        .values({
-          id: config.id,
+    // Upsert feed config
+    await this.db
+      .insert(feeds)
+      .values({
+        id: config.id,
+        channelId: config.channelId,
+        schedule: config.schedule,
+        rangeDays: config.rangeDays,
+        keywordsAnd: config.keywordsAnd
+          ? JSON.stringify(config.keywordsAnd)
+          : null,
+        keywordsOr: config.keywordsOr
+          ? JSON.stringify(config.keywordsOr)
+          : null,
+        location: config.location ? JSON.stringify(config.location) : null,
+        hashtag: config.hashtag ?? null,
+        ownerNickname: config.ownerNickname ?? null,
+        order: config.order ?? null,
+        minParticipantCount: config.minParticipantCount ?? null,
+        minLimit: config.minLimit ?? null,
+        useAi: config.useAi ?? null,
+        lastRunAt: state.lastRunAt ?? null,
+        nextRunAt: state.nextRunAt ?? null,
+      })
+      .onConflictDoUpdate({
+        target: feeds.id,
+        set: {
           channelId: config.channelId,
           schedule: config.schedule,
           rangeDays: config.rangeDays,
@@ -32,55 +54,34 @@ export class DrizzleFeedStore implements IFeedStore {
           useAi: config.useAi ?? null,
           lastRunAt: state.lastRunAt ?? null,
           nextRunAt: state.nextRunAt ?? null,
-        })
-        .onConflictDoUpdate({
-          target: feeds.id,
-          set: {
-            channelId: config.channelId,
-            schedule: config.schedule,
-            rangeDays: config.rangeDays,
-            keywordsAnd: config.keywordsAnd
-              ? JSON.stringify(config.keywordsAnd)
-              : null,
-            keywordsOr: config.keywordsOr
-              ? JSON.stringify(config.keywordsOr)
-              : null,
-            location: config.location ? JSON.stringify(config.location) : null,
-            hashtag: config.hashtag ?? null,
-            ownerNickname: config.ownerNickname ?? null,
-            order: config.order ?? null,
-            minParticipantCount: config.minParticipantCount ?? null,
-            minLimit: config.minLimit ?? null,
-            useAi: config.useAi ?? null,
-            lastRunAt: state.lastRunAt ?? null,
-            nextRunAt: state.nextRunAt ?? null,
-          },
-        });
-
-      // Get existing sent events to preserve sentAt values
-      const existingSentEvents = await tx.query.feedSentEvents.findMany({
-        where: eq(feedSentEvents.feedId, config.id),
+        },
       });
-      const existingSentAtMap = new Map(
-        existingSentEvents.map((e) => [e.eventId, e.sentAt])
-      );
 
-      await tx.delete(feedSentEvents).where(eq(feedSentEvents.feedId, config.id));
-
-      const sentEntries = Object.entries(state.sentEvents);
-      if (sentEntries.length > 0) {
-        const now = new Date().toISOString();
-        await tx.insert(feedSentEvents).values(
-          sentEntries.map(([eventId, updatedAt]) => ({
-            feedId: config.id,
-            eventId: Number(eventId),
-            updatedAt,
-            // Preserve existing sentAt or use current time for new entries
-            sentAt: existingSentAtMap.get(Number(eventId)) || now,
-          }))
-        );
-      }
+    // Get existing sent events to preserve sentAt values
+    const existingSentEvents = await this.db.query.feedSentEvents.findMany({
+      where: eq(feedSentEvents.feedId, config.id),
     });
+    const existingSentAtMap = new Map(
+      existingSentEvents.map((e) => [e.eventId, e.sentAt])
+    );
+
+    // Delete existing sent events
+    await this.db.delete(feedSentEvents).where(eq(feedSentEvents.feedId, config.id));
+
+    // Re-insert sent events
+    const sentEntries = Object.entries(state.sentEvents);
+    if (sentEntries.length > 0) {
+      const now = new Date().toISOString();
+      await this.db.insert(feedSentEvents).values(
+        sentEntries.map(([eventId, updatedAt]) => ({
+          feedId: config.id,
+          eventId: Number(eventId),
+          updatedAt,
+          // Preserve existing sentAt or use current time for new entries
+          sentAt: existingSentAtMap.get(Number(eventId)) || now,
+        }))
+      );
+    }
   }
 
   async delete(feedId: string): Promise<void> {

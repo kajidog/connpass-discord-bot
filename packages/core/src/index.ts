@@ -67,3 +67,19 @@ export {
   CONFIG_DEFAULTS,
   CONFIG_CONSTRAINTS,
 } from './config/index.js';
+
+// Command handlers (CLI/TUI compatible)
+export type {
+  CommandContext,
+  CommandResponse,
+  FeedSetOptions,
+  IScheduler,
+  PrefectureNameResolver,
+} from './commands/index.js';
+
+export {
+  SCHEDULE_LABELS,
+  handleFeedSetCore,
+  handleFeedStatusCore,
+  handleFeedRemoveCore,
+} from './commands/index.js';

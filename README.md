@@ -65,6 +65,39 @@ pnpm --filter @connpass-discord-bot/discord-bot build
 pnpm --filter @connpass-discord-bot/discord-bot start
 ```
 
+## CLI/TUIモード
+
+Discordと同じスラッシュコマンドをターミナルから実行できます。
+
+```bash
+# ビルド
+pnpm --filter @connpass-discord-bot/cli build
+
+# 起動
+pnpm --filter @connpass-discord-bot/cli start
+```
+
+### 操作フロー
+
+1. サーバー選択（矢印キー + Enter）
+2. チャンネル選択
+3. コマンド入力: `/connpass feed status`
+4. Escで戻る / Ctrl+Cで終了
+
+### 対応コマンド
+
+- `/connpass feed status` - 設定確認
+- `/connpass feed set schedule:「cron式」` - 設定追加/更新
+- `/connpass feed remove` - 設定削除
+
+### Dockerでの使用
+
+```bash
+docker compose run --rm -it bot pnpm --filter @connpass-discord-bot/cli start
+```
+
+> ⚠️ CLIはインタラクティブなTUIなので `-it` オプションが必要です
+
 ## 使い方
 
 ### スラッシュコマンド
@@ -188,10 +221,11 @@ SQLiteストレージ使用時、古いデータは自動的にクリーンア�
 ```
 apps/
 ├── discord-bot/    # Discord Bot本体
+├── cli/            # CLI/TUIアプリケーション
 └── ai-agent/       # Mastra AIエージェント（参考実装）
 
 packages/
-├── core/           # 共通型・インターフェース
+├── core/           # 共通型・インターフェース・コマンドハンドラー
 └── feed-worker/    # フィード実行・スケジューラー
 ```
 
@@ -200,6 +234,7 @@ packages/
 - **Runtime**: Node.js 22+
 - **Discord**: discord.js
 - **AI**: Mastra + Vercel AI SDK (OpenAI / Claude / Gemini)
+- **CLI/TUI**: Ink (React for CLI)
 - **API**: @kajidog/connpass-api-client
 
 ## ライセンス

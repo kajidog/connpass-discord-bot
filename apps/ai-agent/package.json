@@ -25,6 +25,7 @@
     "@mastra/libsql": "^0.16.4",
     "@mastra/loggers": "^0.10.19",
     "@mastra/memory": "^0.15.13",
+    "cron-parser": "^5.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
