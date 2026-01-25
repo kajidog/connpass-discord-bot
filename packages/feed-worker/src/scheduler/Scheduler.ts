@@ -13,6 +13,20 @@ export interface SchedulerOptions {
 }
 
 /**
+ * cron式から次回実行日時を計算（共通ユーティリティ）
+ */
+export function calculateNextRunTime(schedule: string): number | undefined {
+  try {
+    const expression = CronExpressionParser.parse(schedule, {
+      tz: 'Asia/Tokyo',
+    });
+    return expression.next().toDate().getTime();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * cron式ベースのフィードスケジューラー
  */
 export class Scheduler {
@@ -82,7 +96,7 @@ export class Scheduler {
     const feed = await this.store.get(feedId);
     if (!feed) return;
 
-    const nextRun = this.calculateNextRun(feed.config.schedule);
+    const nextRun = calculateNextRunTime(feed.config.schedule);
     if (nextRun) {
       feed.state.nextRunAt = nextRun;
       await this.store.save(feed);
@@ -102,24 +116,6 @@ export class Scheduler {
     if (feed) {
       feed.state.nextRunAt = undefined;
       await this.store.save(feed);
-    }
-  }
-
-  /**
-   * cron式から次回実行日時を計算
-   */
-  private calculateNextRun(schedule: string): number | undefined {
-    try {
-      const expression = CronExpressionParser.parse(schedule, {
-        tz: 'Asia/Tokyo',
-      });
-      return expression.next().toDate().getTime();
-    } catch (error) {
-      logger.error('Scheduler', `Invalid cron expression: ${schedule}`, {
-        schedule,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return undefined;
     }
   }
 

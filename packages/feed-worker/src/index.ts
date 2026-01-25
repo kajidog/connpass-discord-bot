@@ -21,6 +21,7 @@ export {
   DrizzleUserNotifySettingsStore,
   DrizzleUserNotifySentStore,
   DrizzleLogWriter,
+  DrizzleLogReader,
 } from './storage/drizzle/index.js';
 
 // Database
@@ -34,7 +35,7 @@ export { FeedExecutor, isRetryableError } from './executor/FeedExecutor.js';
 export type { ExecutionResult, RetryOptions } from './executor/FeedExecutor.js';
 
 // Scheduler
-export { Scheduler } from './scheduler/Scheduler.js';
+export { Scheduler, calculateNextRunTime } from './scheduler/Scheduler.js';
 export type { SchedulerOptions } from './scheduler/Scheduler.js';
 
 // Notify Scheduler
