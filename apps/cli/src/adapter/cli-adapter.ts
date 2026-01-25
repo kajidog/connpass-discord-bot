@@ -165,9 +165,6 @@ function parseSetOptions(args: string[]): FeedSetOptions {
       case 'schedule':
         options.schedule = value;
         break;
-      case 'custom_schedule':
-        options.customSchedule = value;
-        break;
       case 'keywords_and':
         options.keywordsAnd = value;
         break;
@@ -200,7 +197,7 @@ function parseSetOptions(args: string[]): FeedSetOptions {
         break;
     }
   }
-  
+
   return options;
 }
 
@@ -240,9 +237,6 @@ function parseApplyOptions(args: string[]): { channelIds: string[]; options: Fee
         break;
       case 'schedule':
         options.schedule = value;
-        break;
-      case 'custom_schedule':
-        options.customSchedule = value;
         break;
       case 'keywords_and':
         options.keywordsAnd = value;

@@ -96,19 +96,7 @@ export async function handleFeedSetCore(
 ): Promise<CommandResponse> {
   const { channelId } = ctx;
 
-  // スケジュール決定
-  let schedule: string;
-  if (options.schedule === 'custom') {
-    if (!options.customSchedule) {
-      return {
-        content: '「カスタム」を選択した場合は `custom_schedule` にcron式を入力してください。\n例: `0 9 * * 1` = 毎週月曜9時',
-        ephemeral: true,
-      };
-    }
-    schedule = options.customSchedule;
-  } else {
-    schedule = options.schedule;
-  }
+  const schedule = options.schedule;
 
   // cron式検証
   const cronValidation = validateCron(schedule);
@@ -223,7 +211,7 @@ export async function handleFeedStatusCore(
 
   return {
     content: `**このチャンネルのフィード設定**\n\n${settings}`,
-    ephemeral: false,
+    ephemeral: true,
   };
 }
 
@@ -321,6 +309,68 @@ export function generateFeedCommand(config: FeedConfig, targetChannelId?: string
 }
 
 /**
+ * Feed設定からDiscordコマンド文字列を生成
+ * Discordのスラッシュコマンドでワンライナー入力可能な形式
+ */
+export function generateDiscordFeedCommand(config: FeedConfig): string {
+  const parts: string[] = [];
+
+  // schedule
+  parts.push(`schedule:${config.schedule}`);
+
+  // 検索範囲日数
+  if (config.rangeDays !== DEFAULTS.RANGE_DAYS) {
+    parts.push(`range_days:${config.rangeDays}`);
+  }
+
+  // ANDキーワード
+  if (config.keywordsAnd?.length) {
+    parts.push(`keywords_and:${config.keywordsAnd.join(',')}`);
+  }
+
+  // ORキーワード
+  if (config.keywordsOr?.length) {
+    parts.push(`keywords_or:${config.keywordsOr.join(',')}`);
+  }
+
+  // 都道府県
+  if (config.location?.length) {
+    parts.push(`location:${config.location.join(',')}`);
+  }
+
+  // ハッシュタグ
+  if (config.hashtag) {
+    parts.push(`hashtag:${config.hashtag}`);
+  }
+
+  // 主催者ニックネーム
+  if (config.ownerNickname) {
+    parts.push(`owner_nickname:${config.ownerNickname}`);
+  }
+
+  // ソート順
+  if (config.order && config.order !== DEFAULTS.ORDER) {
+    parts.push(`order:${config.order}`);
+  }
+
+  // 規模フィルタ
+  if (config.minParticipantCount !== undefined) {
+    parts.push(`min_participants:${config.minParticipantCount}`);
+  }
+
+  if (config.minLimit !== undefined) {
+    parts.push(`min_limit:${config.minLimit}`);
+  }
+
+  // AI機能
+  if (config.useAi) {
+    parts.push(`use_ai:true`);
+  }
+
+  return `/connpass feed set ${parts.join(' ')}`;
+}
+
+/**
  * /connpass feed share コアハンドラー
  */
 export async function handleFeedShareCore(
@@ -337,19 +387,24 @@ export async function handleFeedShareCore(
     };
   }
 
-  const command = generateFeedCommand(feed.config);
+  const discordCommand = generateDiscordFeedCommand(feed.config);
+  const cliCommand = generateFeedCommand(feed.config);
 
   const content = [
-    'このチャンネルのFeed設定をコピーするコマンド:',
+    '**📋 このチャンネルのFeed設定**',
     '',
-    `\`${command}\``,
+    '**Discord用（このチャンネルに適用）:**',
+    `\`${discordCommand}\``,
     '',
-    '複数チャンネルに適用する場合はchannelsをカンマ区切りで指定してください',
+    '**CLI用（複数チャンネル一括適用）:**',
+    `\`${cliCommand}\``,
+    '',
+    '💡 CLIで複数チャンネルに適用する場合は `channels:` をカンマ区切りで指定',
   ].join('\n');
 
   return {
     content,
-    ephemeral: false,
+    ephemeral: true,
   };
 }
 

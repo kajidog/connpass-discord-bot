@@ -26,7 +26,6 @@ export interface CommandResponse {
  */
 export interface FeedSetOptions {
   schedule: string;
-  customSchedule?: string;
   keywordsAnd?: string;
   keywordsOr?: string;
   rangeDays?: number;
