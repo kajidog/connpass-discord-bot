@@ -13,9 +13,10 @@ import {
   type IScheduler,
   type IFeedStore,
 } from '@connpass-discord-bot/core';
-import { FileFeedStore, calculateNextRunTime } from '@connpass-discord-bot/feed-worker';
+import { calculateNextRunTime } from '@connpass-discord-bot/feed-worker';
 import { getLogReader } from './db-adapter.js';
 import { formatLogsAsText } from '../components/FeedLogViewer.js';
+import { createFeedStoreFromEnv } from './storage.js';
 
 /**
  * Discord Markdownを除去してプレーンテキストに変換
@@ -59,17 +60,12 @@ class CLIScheduler implements IScheduler {
 }
 
 // ストアとスケジューラーの初期化（シングルトン）
-let feedStore: FileFeedStore | null = null;
+let feedStore: IFeedStore | null = null;
 let scheduler: CLIScheduler | null = null;
-
-function getStoreDir(): string {
-  return process.env.JOB_STORE_DIR || './data';
-}
 
 function initializeStores() {
   if (!feedStore) {
-    const storeDir = getStoreDir();
-    feedStore = new FileFeedStore(storeDir);
+    feedStore = createFeedStoreFromEnv();
     scheduler = new CLIScheduler(feedStore);
   }
   
@@ -249,4 +245,3 @@ async function handleLogsCommand(channelId: string): Promise<CommandResponse> {
     };
   }
 }
-
