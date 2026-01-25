@@ -22,21 +22,37 @@ import { createFeedStoreFromEnv } from './storage.js';
 
 /**
  * Discord Markdownを除去してプレーンテキストに変換
+ * 注意: cron式などに含まれるリテラルのアスタリスク（* * *）を保護するため、
+ * コードスパン内の内容は保持し、マークダウン書式のみを除去する
  */
 function stripMarkdown(text: string): string {
-  return text
-    // **bold** -> bold
+  // 1. コードスパン（`...`）の内容を一時的にプレースホルダーに置換して保護
+  const codeSpans: string[] = [];
+  let result = text.replace(/`([^`]+)`/g, (_, content) => {
+    codeSpans.push(content);
+    return `\x00CODE${codeSpans.length - 1}\x00`;
+  });
+
+  // 2. マークダウン書式を除去
+  result = result
+    // **bold** -> bold（アスタリスクが2つ連続で、間に非アスタリスク文字がある場合）
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     // *italic* -> italic
-    .replace(/\*([^*]+)\*/g, '$1')
+    // 単独のアスタリスク（スペースで囲まれたもの）は保持するため、
+    // 開始アスタリスクの前がスペース/行頭で、かつ直後が非スペース文字、
+    // 終了アスタリスクの直前が非スペース文字の場合のみマッチ
+    .replace(/(?<=^|[\s(])\*([^\s*][^*]*[^\s*]|[^\s*])\*(?=[\s).,!?:;]|$)/g, '$1')
     // __underline__ -> underline
     .replace(/__([^_]+)__/g, '$1')
     // ~~strikethrough~~ -> strikethrough
     .replace(/~~([^~]+)~~/g, '$1')
-    // `code` -> code
-    .replace(/`([^`]+)`/g, '$1')
     // > quote -> quote
     .replace(/^>\s*/gm, '');
+
+  // 3. コードスパンの内容を復元（バッククォートは除去）
+  result = result.replace(/\x00CODE(\d+)\x00/g, (_, index) => codeSpans[parseInt(index, 10)]);
+
+  return result;
 }
 
 // CLI用スケジューラー（次回実行日時を正しく計算）

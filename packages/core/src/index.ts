@@ -41,7 +41,6 @@ export type {
 // AI Model Configuration
 export type { AIProvider, ModelConfig, AIModelsConfig, ChannelModelConfig } from './ai/index.js';
 
-// Logger
 export {
   LogLevel,
   LogDestination,
@@ -52,6 +51,7 @@ export {
   Logger,
   ConsoleLogWriter,
   createComponentLogger,
+  InMemoryLogWriter,
 } from './logger/index.js';
 
 export type {
@@ -60,6 +60,9 @@ export type {
   LogConfig,
   ILogWriter,
   ILogger,
+  InMemoryLogEntry,
+  InMemoryActionLogEntry,
+  LogFilterOptions,
 } from './logger/index.js';
 
 // Config validation

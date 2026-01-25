@@ -4,6 +4,10 @@ Connpass Discord Botの設定を管理するためのCLIアプリケーション
 
 ## 機能
 
+- **メインメニュー** - 3つの機能を選択可能
+  - 🎮 Discordの設定 - サーバー/チャンネル選択とFeed設定管理
+  - ⚙️ 現在の設定 - 環境変数から読み込んだ設定を一覧表示
+  - 📋 ログの表示 - システムログをリアルタイム表示（フィルタリング機能付き）
 - Discord サーバー/チャンネルの選択
 - Feed設定の表示・変更・削除
 - Feed実行ログの表示
@@ -13,7 +17,7 @@ Connpass Discord Botの設定を管理するためのCLIアプリケーション
 
 - Node.js 18+
 - pnpm
-- Discord Bot Token
+- Discord Bot Token（Discordの設定機能を使う場合）
 
 ## セットアップ
 
@@ -29,11 +33,12 @@ pnpm --filter @connpass-discord-bot/cli build
 
 | 変数名 | 説明 | デフォルト |
 |--------|------|-----------|
-| `DISCORD_BOT_TOKEN` | Discord Bot Token | 必須 |
+| `DISCORD_BOT_TOKEN` | Discord Bot Token | Discordの設定に必須 |
 | `STORAGE_TYPE` | ストレージ種別（`file` or `sqlite`） | `file` |
 | `JOB_STORE_DIR` | Feed設定の保存先ディレクトリ | `./data` |
 | `DATABASE_URL` | SQLiteデータベースのパス | `${JOB_STORE_DIR}/app.db` |
 | `DB_PATH` | SQLiteデータベースのパス（互換用/非推奨） | `./data/connpass.db` |
+| `LOG_LEVEL` | ログレベル（`DEBUG`, `INFO`, `WARN`, `ERROR`） | `INFO` |
 
 ## 使用方法
 
@@ -48,21 +53,61 @@ DISCORD_BOT_TOKEN=your_token pnpm dev
 
 ## 操作方法
 
-### 画面遷移
+### メインメニュー
+
+起動すると以下のメニューが表示されます：
+
+```
+┌─────────────────────────────────────────┐
+│  Connpass Discord Bot CLI              │
+└─────────────────────────────────────────┘
+
+メニューを選択してください:
+
+❯ 🎮 Discordの設定
+  ⚙️  現在の設定
+  📋 ログの表示
+
+↑↓: 選択  Enter: 決定  Ctrl+C: 終了
+```
+
+### 🎮 Discordの設定
 
 1. **サーバー選択** - ↑↓キーで選択、Enterで決定
 2. **チャンネル選択** - ↑↓キーで選択、Enterで決定、Escで戻る
 3. **コマンド入力** - コマンドを入力してEnterで実行
 
-### キーバインド
+### ⚙️ 現在の設定
+
+環境変数から読み込んだ設定を確認できます：
+
+- **Discord** - Bot Token、Application ID
+- **AI** - OpenAI、Google AI、Anthropic のAPIキー（マスク表示）
+- **データ保存** - DB_PATH、REDIS_URL、FEEDS_PATH
+- **ログ** - LOG_LEVEL、LOG_DESTINATION
+- その他のスケジューラー設定
+
+### 📋 ログの表示
+
+システムログをリアルタイムで確認できます：
 
 | キー | 動作 |
 |------|------|
-| `Tab` | サジェスト選択を適用 |
-| `↑` / `↓` | コマンド履歴のナビゲーション |
+| `Tab` | ログレベル切替（DEBUG → INFO → WARN → ERROR） |
+| `/` | キーワード検索モード開始 |
+| `Backspace` | フィルタークリア |
 | `Shift+↑` / `Shift+↓` | ログのスクロール |
-| `Enter` | コマンド実行 |
-| `Esc` | 前の画面に戻る |
+| `Esc` | メニューに戻る |
+
+### グローバルキーバインド
+
+| キー | 動作 |
+|------|------|
+| `Tab` | サジェスト選択を適用 / ログレベル切替 |
+| `↑` / `↓` | 選択 / コマンド履歴ナビゲーション |
+| `Shift+↑` / `Shift+↓` | ログのスクロール |
+| `Enter` | 決定 / コマンド実行 |
+| `Esc` | 前の画面 / メニューに戻る |
 | `Ctrl+C` | アプリ終了 |
 
 ## コマンド一覧
@@ -117,6 +162,22 @@ DISCORD_BOT_TOKEN=your_token pnpm dev
 
 ## UI構成
 
+### メインメニュー
+
+```
+┌─────────────────────────────────────────┐
+│  Connpass Discord Bot CLI              │
+└─────────────────────────────────────────┘
+
+メニューを選択してください:
+
+❯ 🎮 Discordの設定
+  ⚙️  現在の設定
+  📋 ログの表示
+```
+
+### Discordの設定画面
+
 ```
 ┌─────────────────────────────────────────┐
 │ Connpass CLI / ServerName / #channel    │  ← ヘッダー
@@ -136,7 +197,49 @@ DISCORD_BOT_TOKEN=your_token pnpm dev
 └─────────────────────────────────────────┘
 ```
 
+### 設定表示画面
+
+```
+⚙️  現在の設定
+
+▸ Discord
+  Discord Bot Token:     Bot1****5678    (DISCORD_BOT_TOKEN)
+  Discord Application ID: 123456789       (DISCORD_APPLICATION_ID)
+
+▸ AI
+  OpenAI API Key:        sk-1****abcd    (OPENAI_API_KEY)
+
+▸ データ保存
+  データベースパス:       ./data/app.db   (DB_PATH)
+
+▸ ログ
+  ログレベル:            INFO            (LOG_LEVEL)
+
+Esc: メニューに戻る  Ctrl+C: 終了
+```
+
+### ログ表示画面
+
+```
+📋 システムログ (25/100件)
+
+レベル: INFO (Tab: 切替)  検索: (なし) (/: 編集)
+
+┌─────────────────────────────────────────┐
+│ [10:30:15] [INFO]  [Discord] Connected  │
+│ [10:30:16] [DEBUG] [Feed] Loading...    │
+│ [10:30:17] [WARN]  [API] Rate limited   │
+└─────────────────────────────────────────┘
+
+Tab: レベル切替  /: 検索  Shift+↑↓: スクロール  Esc: 戻る
+```
+
 ## トラブルシューティング
+
+### メニューで「Discordの設定」が選べない
+
+`DISCORD_BOT_TOKEN` 環境変数が設定されていない場合、Discordの設定機能は使用できません。
+設定表示やログ表示機能は Token なしでも使用可能です。
 
 ### DBに接続できない
 
