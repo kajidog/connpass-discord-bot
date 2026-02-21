@@ -24,4 +24,4 @@ COPY packages packages
 
 RUN pnpm -r build
 
-CMD ["pnpm", "--filter", "@connpass-discord-bot/discord-bot", "dev"]
+CMD ["sh", "-c", "pnpm -r build && pnpm --filter @connpass-discord-bot/discord-bot dev"]
