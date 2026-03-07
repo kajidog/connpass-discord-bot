@@ -22,6 +22,18 @@ import { isBannedUser } from '../../security/permissions.js';
 const logger = Logger.getInstance();
 
 /**
+ * Feed設定の参照先チャンネルIDを取得
+ * スレッド内コマンドでは親チャンネルの設定を使用する
+ */
+function getChannelIdForFeedConfig(interaction: ChatInputCommandInteraction): string {
+  const channel = interaction.channel;
+  if (channel?.isThread()) {
+    return channel.parentId ?? interaction.channelId;
+  }
+  return interaction.channelId;
+}
+
+/**
  * FeedConfigを比較可能なオブジェクトに変換（ログ用）
  */
 function feedConfigToLogObject(config: FeedConfig): Record<string, unknown> {
@@ -64,7 +76,7 @@ function extractFeedSetOptions(interaction: ChatInputCommandInteraction): FeedSe
  */
 function createCommandContext(interaction: ChatInputCommandInteraction): CommandContext {
   return {
-    channelId: interaction.channelId,
+    channelId: getChannelIdForFeedConfig(interaction),
     userId: interaction.user.id,
     guildId: interaction.guildId ?? undefined,
   };
@@ -227,7 +239,7 @@ export async function handleFeedRun(
     return;
   }
 
-  const channelId = interaction.channelId;
+  const channelId = getChannelIdForFeedConfig(interaction);
   const feed = await store.get(channelId);
 
   if (!feed) {
