@@ -1,4 +1,4 @@
-import { Message, TextChannel, ThreadChannel, ActionRow, MessageActionRowComponent, ChannelType, TextBasedChannel } from 'discord.js';
+import { Message, TextChannel, ThreadChannel, DMChannel, ActionRow, MessageActionRowComponent, ChannelType } from 'discord.js';
 import { RuntimeContext } from '@mastra/core/runtime-context';
 import type { ConnpassClient } from '@kajidog/connpass-api-client';
 import type { IFeedStore, IUserStore, ISummaryCacheStore, IChannelModelStore, IBanStore, IUserNotifySettingsStore } from '@connpass-discord-bot/core';
@@ -82,12 +82,11 @@ export async function handleAgentMention(
   }
 
   // 返信先チャンネル（スレッドまたはDM）
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let targetChannel: any;
+  let targetChannel: ThreadChannel | DMChannel;
   let contextInfo = '';
 
   if (message.channel.type === ChannelType.DM) {
-    targetChannel = message.channel as TextBasedChannel;
+    targetChannel = message.channel as DMChannel;
   } else if (message.channel.isThread()) {
     targetChannel = message.channel as ThreadChannel;
 
@@ -148,7 +147,7 @@ export async function handleAgentMention(
     runtimeContext.set('summaryCache', context.summaryCache);
     runtimeContext.set('notifySettingsStore', context.notifySettingsStore);
     runtimeContext.set('discordUserId', message.author.id);
-    runtimeContext.set('channelId', message.channelId);
+    runtimeContext.set('channelId', configChannelId);
     runtimeContext.set('guildId', message.guildId);
     if (contextInfo) {
       runtimeContext.set('eventContext', contextInfo);
@@ -246,12 +245,11 @@ export async function handleAgentMentionStream(
   }
 
   // 返信先チャンネル（スレッドまたはDM）
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let targetChannel: any;
+  let targetChannel: ThreadChannel | DMChannel;
   let contextInfo = '';
 
   if (message.channel.type === ChannelType.DM) {
-    targetChannel = message.channel;
+    targetChannel = message.channel as DMChannel;
   } else if (message.channel.isThread()) {
     targetChannel = message.channel as ThreadChannel;
 
@@ -307,7 +305,7 @@ export async function handleAgentMentionStream(
     runtimeContext.set('summaryCache', context.summaryCache);
     runtimeContext.set('notifySettingsStore', context.notifySettingsStore);
     runtimeContext.set('discordUserId', message.author.id);
-    runtimeContext.set('channelId', message.channelId);
+    runtimeContext.set('channelId', configChannelId);
     runtimeContext.set('guildId', message.guildId);
     if (contextInfo) {
       runtimeContext.set('eventContext', contextInfo);
@@ -478,12 +476,11 @@ export async function handleAgentMentionWithProgress(
   }
 
   // 返信先チャンネル（スレッドまたはDM）
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let targetChannel: any;
+  let targetChannel: ThreadChannel | DMChannel;
   let contextInfo = '';
 
   if (message.channel.type === ChannelType.DM) {
-    targetChannel = message.channel as TextBasedChannel;
+    targetChannel = message.channel as DMChannel;
   } else if (message.channel.isThread()) {
     targetChannel = message.channel as ThreadChannel;
 
@@ -529,7 +526,7 @@ export async function handleAgentMentionWithProgress(
   // メッセージ履歴を取得してキャッシュ＆直近コンテキスト構築（既存スレッド/DMの場合）
   if (message.channel.isThread() || message.channel.type === ChannelType.DM) {
     try {
-      const channel = targetChannel as TextBasedChannel;
+      const channel = targetChannel;
       // 現在のメッセージも含めて取得（順序保証のため）
       const messagesCollection = await channel.messages.fetch({ limit: 20 });
       const messages = Array.from(messagesCollection.values());
@@ -584,7 +581,7 @@ export async function handleAgentMentionWithProgress(
     runtimeContext.set('summaryCache', context.summaryCache);
     runtimeContext.set('notifySettingsStore', context.notifySettingsStore);
     runtimeContext.set('discordUserId', message.author.id);
-    runtimeContext.set('channelId', message.channelId);
+    runtimeContext.set('channelId', configChannelId);
     runtimeContext.set('guildId', message.guildId);
     if (contextInfo) {
       runtimeContext.set('eventContext', contextInfo);

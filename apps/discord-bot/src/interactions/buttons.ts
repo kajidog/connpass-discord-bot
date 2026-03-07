@@ -12,6 +12,18 @@ import { summarizeEventDetails } from '../agent/summarizer.js';
 import { isBannedUser } from '../security/permissions.js';
 
 /**
+ * モデル設定の参照先チャンネルIDを取得
+ * スレッド内ボタン操作では親チャンネルの設定を使用する
+ */
+function getChannelIdForModelConfig(interaction: ButtonInteraction): string {
+  const channel = interaction.channel;
+  if (channel?.isThread()) {
+    return channel.parentId ?? interaction.channelId;
+  }
+  return interaction.channelId;
+}
+
+/**
  * ボタンインタラクションハンドラー
  */
 export async function handleButtonInteraction(
@@ -97,7 +109,8 @@ async function handleDetailButton(
       // AI要約を生成して追加
       if (channelModelStore && !isBanned) {
         try {
-          const channelModelConfig = await channelModelStore.get(interaction.channelId);
+          const configChannelId = getChannelIdForModelConfig(interaction);
+          const channelModelConfig = await channelModelStore.get(configChannelId);
           const summary = await summarizeEventDetails(event, summaryCache, channelModelConfig);
           if (summary) {
             const summaryEmbed = new EmbedBuilder()

@@ -4,6 +4,18 @@ import { getAIConfig, validateModel } from '../../ai/index.js';
 import { isBannedUser } from '../../security/permissions.js';
 
 /**
+ * モデル設定の参照先チャンネルIDを取得
+ * スレッド内コマンドでは親チャンネルの設定を使用する
+ */
+function getChannelIdForModelConfig(interaction: ChatInputCommandInteraction): string {
+  const channel = interaction.channel;
+  if (channel?.isThread()) {
+    return channel.parentId ?? interaction.channelId;
+  }
+  return interaction.channelId;
+}
+
+/**
  * /connpass model ハンドラー
  */
 export async function handleModelCommand(
@@ -49,7 +61,7 @@ async function handleModelSet(
   const type = interaction.options.getString('type', true) as 'agent' | 'summarizer';
   const provider = interaction.options.getString('provider', true) as AIProvider;
   const model = interaction.options.getString('model', true);
-  const channelId = interaction.channelId;
+  const channelId = getChannelIdForModelConfig(interaction);
 
   // グローバル設定を取得
   const aiConfig = getAIConfig();
@@ -94,7 +106,7 @@ async function handleModelStatus(
   interaction: ChatInputCommandInteraction,
   channelModelStore: IChannelModelStore
 ): Promise<void> {
-  const channelId = interaction.channelId;
+  const channelId = getChannelIdForModelConfig(interaction);
   const aiConfig = getAIConfig();
   const channelConfig = await channelModelStore.get(channelId);
 
@@ -155,7 +167,7 @@ async function handleModelReset(
     });
     return;
   }
-  const channelId = interaction.channelId;
+  const channelId = getChannelIdForModelConfig(interaction);
   const type = interaction.options.getString('type') as 'agent' | 'summarizer' | null;
 
   if (!type) {
