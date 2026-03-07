@@ -41,7 +41,6 @@ describe('button interaction thread channel resolution', () => {
       get: vi.fn(async () => null),
       save: vi.fn(),
       delete: vi.fn(),
-      list: vi.fn(),
     };
 
     const interaction = {

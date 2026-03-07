@@ -28,7 +28,6 @@ describe('model handler thread channel resolution', () => {
       get: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
-      list: vi.fn(),
     };
 
     banStore = {
