@@ -10,6 +10,9 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   getEventDetails: 'イベント詳細取得',
   getUserSchedule: 'スケジュール取得',
   manageFeed: 'フィード管理',
+  manageNotify: '通知管理',
+  getConversationSummary: '会話要約',
+  getMessage: 'メッセージ取得',
 };
 
 interface ProgressLine {
@@ -169,6 +172,26 @@ export class ProgressEmbed {
     };
     
     // ツール完了後は思考中に戻る
+    this.setThinking(true);
+    this.scheduleUpdate();
+  }
+
+  /**
+   * ツールエラー（バリデーションエラーなど）を追加
+   * @param toolName ツール名
+   * @param errorMessage エラーメッセージ
+   */
+  addToolError(toolName: string, errorMessage: string): void {
+    const displayName = TOOL_DISPLAY_NAMES[toolName] || toolName;
+    const errorId = `error-${toolName}-${Date.now()}`;
+    this.lines.push({
+      id: errorId,
+      toolName,
+      icon: '❌',
+      text: `**${displayName}** エラー: ${errorMessage.slice(0, 100)}`,
+      timestamp: new Date(),
+    });
+    // エラー後は思考中に戻る
     this.setThinking(true);
     this.scheduleUpdate();
   }

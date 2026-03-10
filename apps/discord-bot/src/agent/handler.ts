@@ -168,8 +168,23 @@ export async function handleAgentMention(
     });
 
     let responseText = '';
-    for await (const chunk of stream.textStream) {
-      responseText += chunk;
+    for await (const chunk of stream.fullStream) {
+      if (chunk.type === 'text-delta') {
+        responseText += chunk.payload.text;
+      } else if (chunk.type === 'tool-error') {
+        const { toolName, error: toolError, args } = chunk.payload;
+        const errorMessage = toolError instanceof Error ? toolError.message : String(toolError);
+        logger.logAction({
+          level: LogLevel.WARN,
+          actionType: ActionType.AI_TOOL_CALL,
+          component: 'Agent',
+          message: `Tool validation error: ${toolName}`,
+          userId: message.author.id,
+          guildId: message.guildId ?? undefined,
+          channelId: message.channelId,
+          metadata: { toolName, error: errorMessage, args },
+        });
+      }
     }
 
     // 2000文字制限を考慮して分割送信
@@ -322,10 +337,25 @@ export async function handleAgentMentionStream(
       memory: memoryOptions,
     });
 
-    // テキストを収集
+    // テキストを収集（tool-errorもログに記録）
     let fullText = '';
-    for await (const chunk of stream.textStream) {
-      fullText += chunk;
+    for await (const chunk of stream.fullStream) {
+      if (chunk.type === 'text-delta') {
+        fullText += chunk.payload.text;
+      } else if (chunk.type === 'tool-error') {
+        const { toolName, error: toolError, args } = chunk.payload;
+        const errorMessage = toolError instanceof Error ? toolError.message : String(toolError);
+        logger.logAction({
+          level: LogLevel.WARN,
+          actionType: ActionType.AI_TOOL_CALL,
+          component: 'Agent',
+          message: `Tool validation error: ${toolName}`,
+          userId: message.author.id,
+          guildId: message.guildId ?? undefined,
+          channelId: message.channelId,
+          metadata: { toolName, error: errorMessage, args },
+        });
+      }
     }
 
     // 分割送信
@@ -601,8 +631,28 @@ export async function handleAgentMentionWithProgress(
 
     let fullText = '';
 
-    for await (const chunk of stream.textStream) {
-      fullText += chunk;
+    for await (const chunk of stream.fullStream) {
+      if (chunk.type === 'text-delta') {
+        fullText += chunk.payload.text;
+      } else if (chunk.type === 'tool-error') {
+        const { toolName, error, args } = chunk.payload;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.logAction({
+          level: LogLevel.WARN,
+          actionType: ActionType.AI_TOOL_CALL,
+          component: 'Agent',
+          message: `Tool validation error: ${toolName}`,
+          userId: message.author.id,
+          guildId: message.guildId ?? undefined,
+          channelId: message.channelId,
+          metadata: {
+            toolName,
+            error: errorMessage,
+            args,
+          },
+        });
+        progress.addToolError(toolName, errorMessage);
+      }
     }
 
     // 進捗を完了状態に
