@@ -91,7 +91,7 @@ export function CommandInputWithSuggestions({
             setCommand(newCommand);
             setShowSuggestions(false);
             setInputKey((prev) => prev + 1);
-            cursorPosition.current = newCommand.length;
+            cursorPosition.current = 0;
           }
         } else if (showSuggestions && suggestions.length > 0) {
           // カーソルが先頭以外 → サジェスト候補を上に移動
@@ -113,7 +113,7 @@ export function CommandInputWithSuggestions({
           }
           setCommand(newCommand);
           setInputKey((prev) => prev + 1);
-          cursorPosition.current = newCommand.length;
+          cursorPosition.current = 0;
         } else if (showSuggestions && suggestions.length > 0) {
           // カーソルが先頭以外 → サジェスト候補を下に移動
           setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
