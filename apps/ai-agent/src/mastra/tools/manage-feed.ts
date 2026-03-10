@@ -10,7 +10,7 @@ import { CronExpressionParser } from 'cron-parser';
  */
 export const manageFeedTool = createTool({
   id: 'manage-feed',
-  description: `フィード設定を管理します。
+  description: `フィード設定を管理します。channelIdは省略可能で、省略時は現在会話しているチャンネルに自動設定されます。
 - status: 現在のフィード設定を確認
 - create: 新しいフィードを作成
 - update: 既存のフィードを更新
@@ -24,7 +24,7 @@ export const manageFeedTool = createTool({
       .string()
       .optional()
       .describe(
-        'DiscordチャンネルID（省略時は現在のチャンネル）'
+        'DiscordチャンネルID。省略時は現在会話しているチャンネルが自動的に使用されます（推奨）。スレッドの場合は親チャンネルが使用されます。'
       ),
     config: z
       .object({

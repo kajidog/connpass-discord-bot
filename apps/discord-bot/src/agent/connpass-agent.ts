@@ -281,10 +281,10 @@ const getUserScheduleTool = createTool({
 
 const manageFeedTool = createTool({
   id: 'manage-feed',
-  description: 'Manage feed settings (status/create/update/delete)',
+  description: 'Manage feed settings (status/create/update/delete). Channel ID is optional - if omitted, the current conversation channel is used automatically.',
   inputSchema: z.object({
     action: z.enum(['status', 'create', 'update', 'delete']).describe('Action to perform'),
-    channelId: z.string().optional().describe('Channel ID'),
+    channelId: z.string().optional().describe('Discord channel ID. If omitted, uses the current conversation channel (recommended).'),
     config: z.object({
       schedule: z.string().optional(),
       rangeDays: z.number().optional(),
