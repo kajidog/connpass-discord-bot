@@ -48,7 +48,7 @@ export function getStatusHints(
       baseHints.push('Enter: 選択', 'Esc: 戻る', 'Ctrl+C: 終了');
       break;
     case 'command':
-      baseHints.push('Tab: 補完', '↑↓: 履歴', 'Enter: 実行', 'Esc: 戻る');
+      baseHints.push('Tab: 補完', '↑↓: 候補/履歴', 'Enter: 実行', 'Esc: 戻る');
       if (options?.hasLogs && (options.canScrollUp || options.canScrollDown)) {
         baseHints.push('Shift+↑↓: スクロール');
       }

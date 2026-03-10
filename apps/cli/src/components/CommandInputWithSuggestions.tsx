@@ -28,6 +28,9 @@ export function CommandInputWithSuggestions({
   // TextInputのリマウント用キー（カーソル位置をリセットするため）
   const [inputKey, setInputKey] = useState(0);
 
+  // カーソル位置トラッキング（ink-text-inputは外部に公開しないため自前で管理）
+  const cursorPosition = useRef<number>('/connpass feed '.length);
+
   // コマンド履歴
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -56,6 +59,7 @@ export function CommandInputWithSuggestions({
             setHistoryIndex(-1);
             // TextInputをリマウントしてカーソル位置を末尾に
             setInputKey((prev) => prev + 1);
+            cursorPosition.current = selected.length;
             // 次のサジェストを選択状態に（連続Tabで次へ）
             setSelectedIndex((prev) => Math.min(prev + 1, suggestions.length - 1));
           }
@@ -63,36 +67,56 @@ export function CommandInputWithSuggestions({
         return;
       }
 
-      // 上下キー: 履歴ナビゲーション優先
+      // 左右矢印: カーソル位置をトラッキング
+      if (key.leftArrow) {
+        cursorPosition.current = Math.max(0, cursorPosition.current - 1);
+        return;
+      }
+      if (key.rightArrow) {
+        cursorPosition.current = Math.min(command.length, cursorPosition.current + 1);
+        return;
+      }
+
+      // 上下キー: カーソルが先頭にあるときは履歴、それ以外はサジェスト候補の切り替え
       if (key.upArrow) {
-        if (commandHistory.length > 0) {
-          // 履歴ナビゲーション（上へ = 過去へ）
-          if (historyIndex === -1) {
-            // 現在の入力を保存
-            savedCommand.current = command;
+        if (cursorPosition.current === 0) {
+          // カーソルが先頭 → 履歴ナビゲーション（上へ = 過去へ）
+          if (commandHistory.length > 0) {
+            if (historyIndex === -1) {
+              savedCommand.current = command;
+            }
+            const newIndex = Math.min(historyIndex + 1, commandHistory.length - 1);
+            setHistoryIndex(newIndex);
+            const newCommand = commandHistory[commandHistory.length - 1 - newIndex];
+            setCommand(newCommand);
+            setShowSuggestions(false);
+            setInputKey((prev) => prev + 1);
+            cursorPosition.current = newCommand.length;
           }
-          const newIndex = Math.min(historyIndex + 1, commandHistory.length - 1);
-          setHistoryIndex(newIndex);
-          setCommand(commandHistory[commandHistory.length - 1 - newIndex]);
-          setShowSuggestions(false);
-          // TextInputをリマウントしてカーソル位置を末尾に
-          setInputKey((prev) => prev + 1);
+        } else if (showSuggestions && suggestions.length > 0) {
+          // カーソルが先頭以外 → サジェスト候補を上に移動
+          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
         }
         return;
       }
 
       if (key.downArrow) {
-        if (historyIndex > -1) {
-          // 履歴ナビゲーション（下へ = 新しい方へ）
+        if (cursorPosition.current === 0 && historyIndex > -1) {
+          // カーソルが先頭 → 履歴ナビゲーション（下へ = 新しい方へ）
           const newIndex = historyIndex - 1;
           setHistoryIndex(newIndex);
+          let newCommand: string;
           if (newIndex === -1) {
-            setCommand(savedCommand.current);
+            newCommand = savedCommand.current;
           } else {
-            setCommand(commandHistory[commandHistory.length - 1 - newIndex]);
+            newCommand = commandHistory[commandHistory.length - 1 - newIndex];
           }
-          // TextInputをリマウントしてカーソル位置を末尾に
+          setCommand(newCommand);
           setInputKey((prev) => prev + 1);
+          cursorPosition.current = newCommand.length;
+        } else if (showSuggestions && suggestions.length > 0) {
+          // カーソルが先頭以外 → サジェスト候補を下に移動
+          setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
         }
         return;
       }
@@ -102,11 +126,14 @@ export function CommandInputWithSuggestions({
 
   // コマンド変更
   const handleChange = useCallback((value: string) => {
+    // カーソル位置を差分から推定して更新
+    const lengthDiff = value.length - command.length;
+    cursorPosition.current = Math.max(0, cursorPosition.current + lengthDiff);
     setCommand(value);
     setShowSuggestions(true);
     setSelectedIndex(0);
     setHistoryIndex(-1);
-  }, []);
+  }, [command]);
 
   // コマンド実行
   const handleSubmit = useCallback(
@@ -174,7 +201,7 @@ export function CommandInputWithSuggestions({
           borderColor="gray"
           paddingX={1}
         >
-          <Text color="gray" dimColor>サジェスト (Tab: 選択)</Text>
+          <Text color="gray" dimColor>サジェスト (↑↓/Tab: 選択)</Text>
           {suggestions.slice(0, 5).map((suggestion, index) => {
             const isSelected = index === selectedIndex;
             const description = getCommandDescription(suggestion);
@@ -211,7 +238,7 @@ export function CommandInputWithSuggestions({
       {!isExecuting && historyIndex > -1 && (
         <Box marginLeft={1}>
           <Text color="gray" dimColor>
-            履歴 ({historyIndex + 1}/{commandHistory.length}) - ↑↓: 切替
+            履歴 ({historyIndex + 1}/{commandHistory.length}) - 先頭で↑↓: 切替
           </Text>
         </Box>
       )}
