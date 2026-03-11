@@ -682,11 +682,13 @@ export function createConnpassAgent(channelModelConfig?: ChannelModelConfig | nu
       });
       const currentDate = jstFormatter.format(now);
       
+      const currentChannelId = runtimeContext?.get('channelId') as string | undefined;
       const dynamicContext = `
 
 ## Current Context
 **Today's date: ${currentDate} (JST/Asia/Tokyo)**
-Use this as the reference for "today", "tomorrow", "this week", etc.`;
+Use this as the reference for "today", "tomorrow", "this week", etc.
+${currentChannelId ? `**Current channel ID: ${currentChannelId}**\nUse this channel ID for feed management and other channel-specific operations. Do NOT ask the user for the channel ID.` : ''}`;
 
       const eventContext = runtimeContext?.get('eventContext') as string | undefined;
       
